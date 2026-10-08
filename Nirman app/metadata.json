@@ -1,0 +1,6 @@
+{
+  "name": "নির্মাণ প্রো (NirmanPro)",
+  "description": "কনস্ট্রাকশন সাইট ও কন্ট্রাক্টর ম্যানেজমেন্ট সিস্টেম এবং আর্কিটেকচারাল ক্যালকুলেটর",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
