@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="bn" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Dashboard (সাইট কন্ট্রোল রুম) - Construction Site & Contractor Management</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#fffbeb',
+              100: '#fef3c7',
+              400: '#fbbf24',
+              500: '#f59e0b',
+              600: '#d97706',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+    body {
+      font-family: 'Hind Siliguri', sans-serif;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Hide scrollbars for clean mobile UX */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    /* Smooth circular progress ring */
+    .progress-ring-circle {
+      transition: stroke-dashoffset 0.85s cubic-bezier(0.4, 0, 0.2, 1);
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-amber-500 selection:text-slate-950 pb-16">
+
+  <!-- ================= 1. TOP HEADER & APP NAVIGATION ================= -->
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+      <!-- Title & Branding -->
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 flex-shrink-0 shadow-sm shadow-amber-500/10">
+          <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+        </div>
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <h1 class="font-bold text-base sm:text-lg text-slate-100 leading-tight truncate">
+              প্রজেক্ট ড্যাশবোর্ড ও কন্ট্রোল রুম
+            </h1>
+            <span class="hidden md:inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> লাইভ সিন্ক
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-400 truncate">মালামাল, শ্রমিক, খুচরা খরচ ও ভেন্ডর বকেয়া সম্বলিত মাস্টার ওভারভিউ</p>
+        </div>
+      </div>
+
+      <!-- Quick Module Shortcuts & Print/Export -->
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <!-- Site Selector Filter -->
+        <div class="hidden sm:flex items-center bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1 text-xs">
+          <i data-lucide="building-2" class="w-3.5 h-3.5 text-slate-400 mr-1.5"></i>
+          <select id="project-selector" onchange="handleProjectChange(this.value)" class="bg-transparent text-slate-200 text-xs font-semibold focus:outline-none cursor-pointer">
+            <option value="all">সব সাইট / অল প্রজেক্ট (All)</option>
+            <!-- Injected dynamically -->
+          </select>
+        </div>
+
+        <button 
+          onclick="window.print()" 
+          title="রিপোর্ট প্রিন্ট বা পিডিএফ সেভ করুন"
+          class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 p-2 sm:px-3 sm:py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5"
+        >
+          <i data-lucide="printer" class="w-4 h-4"></i>
+          <span class="hidden md:inline">প্রিন্ট রিপোর্ট</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= MAIN CONTAINER ================= -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
+
+    <!-- 0. Row-Level Security (RLS) & Access Control Status Banner -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm relative overflow-hidden">
+      <div class="absolute -right-12 -top-12 w-48 h-48 bg-amber-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div class="flex items-start sm:items-center gap-3.5 relative z-10">
+        <div id="rls-icon-box" class="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 flex-shrink-0 mt-0.5 sm:mt-0">
+          <i data-lucide="shield-check" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-xs text-slate-400">লগইন প্রোফাইল:</span>
+            <span id="current-user-email-badge" class="font-mono text-xs font-bold text-amber-400 bg-slate-950 px-2.5 py-0.5 rounded-lg border border-slate-800">
+              contractor@construction.com
+            </span>
+            <span id="current-role-badge" class="text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30">
+              CONTRACTOR (RLS Active)
+            </span>
+          </div>
+          <p id="rls-description" class="text-[11px] text-slate-400 mt-1">
+            🔒 <strong>Row-Level Security সক্রিয়:</strong> আপনি শুধুমাত্র আপনার প্রজেক্ট (<span class="font-mono">ownerEmail</span>) অনুযায়ী ফিল্টারকৃত রোল-আপ ডেটা ও হিসাব দেখতে পাচ্ছেন।
+          </p>
+        </div>
+      </div>
+
+      <!-- Interactive Switcher to test RLS & Super Admin Exception -->
+      <div class="flex items-center gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800 self-start md:self-auto flex-wrap relative z-10">
+        <span class="text-[10px] text-slate-500 px-2 font-mono uppercase tracking-wider">রোল সিমুলেশন:</span>
+        <button onclick="switchUser('contractor@construction.com', 'Contractor')" id="btn-user-cont" class="px-2.5 py-1 text-xs rounded-lg transition font-medium bg-amber-500 text-slate-950 font-bold">
+          👷 Contractor
+        </button>
+        <button onclick="switchUser('engineer@site.com', 'Site Engineer')" id="btn-user-eng" class="px-2.5 py-1 text-xs rounded-lg transition font-medium text-slate-400 hover:text-slate-200">
+          📐 Engineer
+        </button>
+        <button onclick="switchUser('admin@yourdomain.com', 'Super Admin')" id="btn-user-admin" class="px-2.5 py-1 text-xs rounded-lg transition font-medium text-amber-400 hover:text-amber-300">
+          👑 Super Admin
+        </button>
+      </div>
+    </section>
+
+    <!-- Mobile Project Selector (Visible on small screens) -->
+    <section class="sm:hidden bg-slate-900 border border-slate-800 rounded-2xl p-3 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2 text-xs text-slate-300">
+        <i data-lucide="building-2" class="w-4 h-4 text-amber-400"></i>
+        <span>সাইট ফিল্টার:</span>
+      </div>
+      <select id="project-selector-mobile" onchange="handleProjectChange(this.value)" class="bg-slate-950 border border-slate-700 text-slate-100 text-xs rounded-xl px-2.5 py-1.5 font-semibold focus:outline-none">
+        <option value="all">সকল সাইট (All)</option>
+      </select>
+    </section>
+
+    <!-- ================= 🎯 1. TOP SUMMARY CARDS (FINANCIAL OVERVIEW) ================= -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      
+      <!-- Total Project Cost (Prominent Grand Total Card) -->
+      <div class="lg:col-span-5 bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border border-amber-500/40 rounded-3xl p-6 sm:p-7 relative overflow-hidden shadow-xl shadow-amber-500/5 flex flex-col justify-between">
+        <div class="absolute right-0 top-0 w-44 h-44 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute top-4 right-4 bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1 rounded-xl text-[11px] font-bold font-mono">
+          GRAND TOTAL
+        </div>
+
+        <div>
+          <div class="flex items-center gap-2 text-slate-400 text-xs sm:text-sm font-semibold uppercase tracking-wider mb-2">
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+            মোট প্রজেক্ট খরচ (Total Project Cost)
+          </div>
+          <div class="text-3xl sm:text-4xl lg:text-5xl font-black font-mono text-slate-100 tracking-tight flex items-baseline gap-1 mt-1">
+            <span class="text-amber-400 text-2xl sm:text-3xl font-sans">৳</span>
+            <span id="grand-total-cost">0</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-2 flex items-center gap-1.5">
+            <i data-lucide="calculator" class="w-3.5 h-3.5 text-amber-400"></i>
+            মালামাল + শ্রমিক হাজিরা + খুচরা খরচের সর্বমোট যোগফল
+          </p>
+        </div>
+
+        <div class="mt-6 pt-5 border-t border-slate-800/80 flex items-center justify-between text-xs">
+          <div>
+            <span class="text-slate-500 block text-[11px]">সাইট সংখ্যা</span>
+            <span id="active-projects-count" class="font-mono font-bold text-slate-200 text-sm">0</span>
+          </div>
+          <div class="text-right">
+            <span class="text-slate-500 block text-[11px]">সর্বশেষ আপডেট</span>
+            <span class="font-mono text-slate-400 text-[11px]">আজকে, লাইভ রোল-আপ</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Breakdowns (3 Visually Distinct Smaller Cards) -->
+      <div class="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+        <!-- 1. Total Material Cost Card -->
+        <div class="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-3xl p-5 flex flex-col justify-between transition group shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-xl border border-blue-500/20">
+              মালামাল খাতা
+            </span>
+            <div class="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center">
+              <i data-lucide="package" class="w-4 h-4"></i>
+            </div>
+          </div>
+          <div>
+            <span class="text-xs text-slate-400 font-medium block">টোটাল মালামাল খরচ</span>
+            <div class="text-xl sm:text-2xl font-black font-mono text-slate-100 mt-1">
+              ৳ <span id="breakdown-material-cost">0</span>
+            </div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-slate-400 flex items-center justify-between">
+            <span>রড, সিমেন্ট, ইট, টাইলস</span>
+            <span id="material-entry-count" class="font-mono font-bold text-blue-300">0 টি</span>
+          </div>
+        </div>
+
+        <!-- 2. Total Labor Cost Card -->
+        <div class="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-3xl p-5 flex flex-col justify-between transition group shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-xl border border-emerald-500/20">
+              শ্রমিক হাজিরা
+            </span>
+            <div class="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+              <i data-lucide="hard-hat" class="w-4 h-4"></i>
+            </div>
+          </div>
+          <div>
+            <span class="text-xs text-slate-400 font-medium block">টোটাল শ্রমিক মজুরি</span>
+            <div class="text-xl sm:text-2xl font-black font-mono text-slate-100 mt-1">
+              ৳ <span id="breakdown-labor-cost">0</span>
+            </div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-slate-400 flex items-center justify-between">
+            <span>মিস্ত্রি ও হেল্পার মজুরি</span>
+            <span id="labor-head-count" class="font-mono font-bold text-emerald-300">0 জন</span>
+          </div>
+        </div>
+
+        <!-- 3. Total Petty Cash Card -->
+        <div class="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-3xl p-5 flex flex-col justify-between transition group shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-xl border border-amber-500/20">
+              খুচরা খরচ
+            </span>
+            <div class="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
+              <i data-lucide="wallet" class="w-4 h-4"></i>
+            </div>
+          </div>
+          <div>
+            <span class="text-xs text-slate-400 font-medium block">টোটাল খুচরা খরচ</span>
+            <div class="text-xl sm:text-2xl font-black font-mono text-slate-100 mt-1">
+              ৳ <span id="breakdown-petty-cost">0</span>
+            </div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-slate-400 flex items-center justify-between">
+            <span>চা-নাস্তা, সিএনজি, ছোট হার্ডওয়্যার</span>
+            <span id="petty-voucher-count" class="font-mono font-bold text-amber-300">0 টি</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ================= 🎯 2. RUNNING PHASE & PROJECT PROGRESS (VISUALS) ================= -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      
+      <!-- Current Ongoing Phase Card -->
+      <div class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                <i data-lucide="activity" class="w-4 h-4"></i>
+              </div>
+              <h3 class="font-bold text-slate-100 text-sm">চলমান কাজের ধাপ (Running Phase)</h3>
+            </div>
+            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30">
+              সাইট স্ট্যাটাস
+            </span>
+          </div>
+
+          <!-- Highlight Phase Badge -->
+          <div class="mt-4 p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center gap-3.5">
+            <div class="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black text-xl flex-shrink-0 shadow-lg shadow-amber-500/20">
+              🏗️
+            </div>
+            <div class="min-w-0 flex-1">
+              <span class="text-[11px] text-slate-400 uppercase tracking-wider block font-medium">বর্তমান মূল অ্যাক্টিভিটি</span>
+              <h4 id="running-phase-title" class="font-bold text-base sm:text-lg text-slate-100 truncate">
+                ৩য় তলার ছাদ ঢালাই (Roof Casting)
+              </h4>
+              <p id="running-phase-location" class="text-xs text-slate-400 mt-0.5 truncate">
+                লোকেশন: বনানী জি+৬ রেসিডেন্সিয়াল
+              </p>
+            </div>
+          </div>
+
+          <!-- Phase Milestone Progress -->
+          <div class="mt-4 space-y-2.5 text-xs">
+            <div class="flex items-center justify-between text-slate-400">
+              <span>ধাপ শুরু: <strong id="phase-start-date" class="font-mono text-slate-200">2026-10-01</strong></span>
+              <span>সম্ভাব্য সমাপ্তি: <strong id="phase-est-end" class="font-mono text-slate-200">2026-10-15</strong></span>
+            </div>
+            <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+              <div id="phase-timeline-bar" class="bg-gradient-to-r from-amber-500 to-amber-400 h-full rounded-full transition-all duration-700" style="width: 70%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-5 pt-4 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+          <span class="flex items-center gap-1.5">
+            <i data-lucide="clock" class="w-3.5 h-3.5 text-amber-400"></i>
+            <span>শিডিউল স্ট্যাটাস: অন-টাইম</span>
+          </span>
+          <span id="phase-supervisor-badge" class="font-medium text-slate-300">তত্ত্বাবধায়ক: ইঞ্জিনিয়ার কামরুল</span>
+        </div>
+      </div>
+
+      <!-- Project Progress (Circular Progress Chart & Client Delivery Gauge) -->
+      <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
+              <i data-lucide="pie-chart" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-slate-100 text-sm">প্রজেক্ট সার্বিক অগ্রগতি (Project Progress)</h3>
+              <p class="text-[11px] text-slate-400">ক্লায়েন্ট প্রেজেন্টেশন ও কাজের মাইলস্টোন ট্র্যাকিং</p>
+            </div>
+          </div>
+          <span id="progress-status-badge" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            অগ্রগতি স্বাভাবিক
+          </span>
+        </div>
+
+        <!-- Progress Visual Area: Circular SVG + Progress Bars -->
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-5 items-center my-2">
+          
+          <!-- Circular Progress Indicator -->
+          <div class="sm:col-span-5 flex flex-col items-center justify-center p-2">
+            <div class="relative w-36 h-36 flex items-center justify-center">
+              <svg class="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
+                <!-- Track -->
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="50"
+                  fill="transparent"
+                  stroke="#1e293b"
+                  stroke-width="10"
+                />
+                <!-- Indicator Ring -->
+                <circle
+                  id="circular-progress-bar"
+                  cx="60"
+                  cy="60"
+                  r="50"
+                  fill="transparent"
+                  stroke="#f59e0b"
+                  stroke-width="10"
+                  stroke-dasharray="314.159"
+                  stroke-dashoffset="109.95"
+                  stroke-linecap="round"
+                  class="progress-ring-circle"
+                />
+              </svg>
+              <!-- Center Text inside circle -->
+              <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+                <span id="circular-percentage-text" class="text-3xl font-black font-mono text-slate-100 tracking-tight">65%</span>
+                <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">সম্পন্ন</span>
+              </div>
+            </div>
+            <span class="text-xs text-slate-400 mt-2 text-center font-medium">সামগ্রিক ভলিউম অগ্রগতি</span>
+          </div>
+
+          <!-- Linear Work Breakdown Bars -->
+          <div class="sm:col-span-7 space-y-3 text-xs">
+            <!-- 1. Civil Structure -->
+            <div>
+              <div class="flex items-center justify-between text-slate-300 font-medium mb-1">
+                <span>সিভিল স্ট্রাকচার ও ছাদ ঢালাই</span>
+                <span id="bar-civil-pct" class="font-mono text-amber-400 font-bold">85%</span>
+              </div>
+              <div class="w-full bg-slate-950 rounded-full h-2 border border-slate-800 overflow-hidden">
+                <div id="bar-civil-fill" class="bg-amber-500 h-full rounded-full transition-all duration-700" style="width: 85%;"></div>
+              </div>
+            </div>
+
+            <!-- 2. Masonry & Plaster -->
+            <div>
+              <div class="flex items-center justify-between text-slate-300 font-medium mb-1">
+                <span>গাঁথুনি ও দেয়াল প্লাস্টার</span>
+                <span id="bar-masonry-pct" class="font-mono text-blue-400 font-bold">60%</span>
+              </div>
+              <div class="w-full bg-slate-950 rounded-full h-2 border border-slate-800 overflow-hidden">
+                <div id="bar-masonry-fill" class="bg-blue-500 h-full rounded-full transition-all duration-700" style="width: 60%;"></div>
+              </div>
+            </div>
+
+            <!-- 3. Sanitary & Electrical -->
+            <div>
+              <div class="flex items-center justify-between text-slate-300 font-medium mb-1">
+                <span>ইলেকট্রিক ও প্লাম্বিং লাইন</span>
+                <span id="bar-mep-pct" class="font-mono text-emerald-400 font-bold">50%</span>
+              </div>
+              <div class="w-full bg-slate-950 rounded-full h-2 border border-slate-800 overflow-hidden">
+                <div id="bar-mep-fill" class="bg-emerald-500 h-full rounded-full transition-all duration-700" style="width: 50%;"></div>
+              </div>
+            </div>
+
+            <!-- 4. Finishing & Tiles -->
+            <div>
+              <div class="flex items-center justify-between text-slate-300 font-medium mb-1">
+                <span>ফ্লোরিং, টাইলস ও পেইন্টিং</span>
+                <span id="bar-finish-pct" class="font-mono text-purple-400 font-bold">35%</span>
+              </div>
+              <div class="w-full bg-slate-950 rounded-full h-2 border border-slate-800 overflow-hidden">
+                <div id="bar-finish-fill" class="bg-purple-500 h-full rounded-full transition-all duration-700" style="width: 35%;"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="mt-4 pt-4 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+          <span class="flex items-center gap-1.5">
+            <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span>কোয়ালিটি ইন্সপেকশন: অনুমোদিত</span>
+          </span>
+          <span class="font-mono text-slate-400">টার্গেট হ্যান্ডওভার: ডিসেম্বর ২০২৬</span>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ================= 🎯 3. ALERTS & NOTIFICATIONS SECTION (ACTIONABLE INSIGHTS) ================= -->
+    <section class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-sm space-y-5">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 flex-shrink-0">
+            <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="font-bold text-base text-slate-100">জরুরি বাকি ও সতর্কতা নোটিফিকেশন</h3>
+              <span id="alerts-count-badge" class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                0 টি বাকি
+              </span>
+            </div>
+            <p class="text-xs text-slate-400">ভেন্ডর সাপ্লায়ার ও শ্রমিকদের অপরিশোধিত পাওনা - যা দ্রুত মেটানো প্রয়োজন</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 text-xs">
+          <div class="p-2 px-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-2">
+            <span class="text-slate-400">মোট বকেয়া পাওনা:</span>
+            <span id="total-pending-dues-amount" class="font-mono font-bold text-rose-400 text-sm">৳ 0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pending Dues / Alerts List -->
+      <div id="alerts-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+        <!-- Rendered dynamically via JavaScript -->
+      </div>
+    </section>
+
+    <!-- ================= 4. RECENT EXPENSE ACTIVITY TABLE / MINI AUDIT LOG ================= -->
+    <section class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
+            <i data-lucide="layers" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-sm text-slate-100">রিসেন্ট সাইট লেনদেন অ্যাক্টিভিটি (Recent Ledger Feed)</h3>
+            <p class="text-[11px] text-slate-400">মালামাল চালান, শ্রমিক মজুরি ও সাইট খরচের সর্বশেষ ৫টি রেকর্ড</p>
+          </div>
+        </div>
+        <span class="text-[11px] font-mono text-slate-500">অডিট ট্রেইল ভেরিফাইড</span>
+      </div>
+
+      <div class="overflow-x-auto no-scrollbar">
+        <table class="w-full text-left text-xs">
+          <thead>
+            <tr class="border-b border-slate-800 text-slate-400">
+              <th class="py-2.5 px-3 font-semibold">তারিখ</th>
+              <th class="py-2.5 px-3 font-semibold">মডিউল</th>
+              <th class="py-2.5 px-3 font-semibold">বিবরণ / শিরোনাম</th>
+              <th class="py-2.5 px-3 font-semibold">সাইট</th>
+              <th class="py-2.5 px-3 font-semibold text-right">পরিমাণ (৳)</th>
+              <th class="py-2.5 px-3 font-semibold text-center">স্ট্যাটাস</th>
+            </tr>
+          </thead>
+          <tbody id="recent-activity-tbody" class="divide-y divide-slate-800/60 text-slate-300 font-medium">
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= 5. JAVASCRIPT LOGIC & DATA AGGREGATION ================= -->
+  <script>
+    /**
+     * Construction Site & Contractor Management System
+     * Project Dashboard (Control Room) Script
+     * Pure Vanilla JS + Tailwind CSS + Lucide Icons
+     */
+
+    // Current Session / Logged In User State
+    let loggedInUser = {
+      email: 'contractor@construction.com',
+      role: 'Contractor'
+    };
+
+    let selectedProjectFilter = 'all';
+
+    // ==========================================
+    // COMPREHENSIVE DUMMY DATA FOR DASHBOARD
+    // ==========================================
+    // Aggregating across Material, Labor, Petty Cash, and Vendors with ownerEmail property for RLS.
+
+    const MOCK_PROJECTS = [
+      {
+        id: 'PRJ-101',
+        name: 'বনানী জি+৬ রেসিডেন্সিয়াল',
+        ownerEmail: 'contractor@construction.com',
+        location: 'রোড-১১, ব্লক-ডি, বনানী, ঢাকা',
+        runningPhase: '৩য় তলার ছাদ ঢালাই (Roof Casting)',
+        phaseStartDate: '2026-10-01',
+        phaseEstEnd: '2026-10-15',
+        phaseTimelinePercent: 70,
+        supervisor: 'ইঞ্জিনিয়ার কামরুল',
+        overallProgress: 65,
+        civilPercent: 85,
+        masonryPercent: 60,
+        mepPercent: 50,
+        finishingPercent: 35
+      },
+      {
+        id: 'PRJ-102',
+        name: 'উত্তরা সেক্টর-৩ কমার্শিয়াল',
+        ownerEmail: 'contractor@construction.com',
+        location: 'সেক্টর-৩, রবীন্দ্র সরণি, উত্তরা, ঢাকা',
+        runningPhase: '৪র্থ তলার দেয়াল গাঁথুনি ও প্লাস্টার (Brickwork)',
+        phaseStartDate: '2026-09-20',
+        phaseEstEnd: '2026-10-25',
+        phaseTimelinePercent: 80,
+        supervisor: 'ইঞ্জিনিয়ার তানভীর আহমেদ',
+        overallProgress: 48,
+        civilPercent: 70,
+        masonryPercent: 55,
+        mepPercent: 40,
+        finishingPercent: 20
+      },
+      {
+        id: 'PRJ-103',
+        name: 'পদ্মা রিভারভিউ রিসোর্ট ভিলা',
+        ownerEmail: 'engineer@site.com',
+        location: 'মাওয়া এক্সপ্রেসওয়ে, পদ্মা সেতু সংযোগ',
+        runningPhase: 'ফ্লোর টাইলস ও স্যানিটারি ফিটিংস (Finishing)',
+        phaseStartDate: '2026-09-15',
+        phaseEstEnd: '2026-10-30',
+        phaseTimelinePercent: 90,
+        supervisor: 'ইঞ্জিনিয়ার তানভীর আহমেদ',
+        overallProgress: 82,
+        civilPercent: 100,
+        masonryPercent: 95,
+        mepPercent: 80,
+        finishingPercent: 70
+      }
+    ];
+
+    const MOCK_MATERIALS = [
+      {
+        id: 'MAT-201',
+        projectId: 'PRJ-101',
+        projectName: 'বনানী জি+৬ রেসিডেন্সিয়াল',
+        title: 'সিমেন্ট (Cement) ১০০ ব্যাগ',
+        cost: 55000,
+        date: '2026-10-07',
+        ownerEmail: 'contractor@construction.com',
+        vendorName: 'মেসার্স শাহ সিমেন্ট এজেন্সি'
+      },
+      {
+        id: 'MAT-202',
+        projectId: 'PRJ-101',
+        projectName: 'বনানী জি+৬ রেসিডেন্সিয়াল',
+        title: 'রড / স্টিল (MS Rod) ২৫০০ কেজি',
+        cost: 237500,
+        date: '2026-10-06',
+        ownerEmail: 'contractor@construction.com',
+        vendorName: 'বিএসআরএম স্টিল ডিপো'
+      },
+      {
+        id: 'MAT-203',
+        projectId: 'PRJ-102',
+        projectName: 'উত্তরা সেক্টর-৩ কমার্শিয়াল',
+        title: 'লাল ইট (১ম শ্রেণি) ৫,০০০ পিচ',
+        cost: 60000,
+        date: '2026-10-05',
+        ownerEmail: 'contractor@construction.com',
+        vendorName: 'সততা অটো ব্রিকস'
+      },
+      {
+        id: 'MAT-204',
+        projectId: 'PRJ-102',
+        projectName: 'উত্তরা সেক্টর-৩ কমার্শিয়াল',
+        title: 'ফ্লোর টাইলস (২৪"×২৪") ৩৫০ স্কয়ার ফিট',
+        cost: 84000,
+        date: '2026-10-04',
+        ownerEmail: 'contractor@construction.com',
+        vendorName: 'আকিজ সিরামিকস'
+      },
+      {
+        id: 'MAT-205',
+        projectId: 'PRJ-103',
+        projectName: 'পদ্মা রিভারভিউ রিসোর্ট ভিলা',
+        title: 'প্রিমিয়াম স্যানিটারি কমোড ও বেসিন সেট',
+        cost: 145000,
+        date: '2026-10-06',
+        ownerEmail: 'engineer@site.com',
+        vendorName: 'বিসমিল্লাহ হার্ডওয়্যার অ্যান্ড স্যানিটারি'
+      }
+    ];
+
+    const MOCK_LABOR = [
+      {
+        id: 'ATT-101',
+        projectId: 'PRJ-101',
+        projectName: 'বনানী জি+৬ রেসিডেন্সিয়াল',
+        workerName: 'মো: রফিকুল ইসলাম (রাজমিস্ত্রি দল)',
+        headCount: 4,
+        wage: 3600,
+        date: '2026-10-07',
+        ownerEmail: 'contractor@construction.com'
+      },
+      {
+        id: 'ATT-102',
+        projectId: 'PRJ-101',
+        projectName: 'বনানী জি+৬ রেসিডেন্সিয়াল',
+        workerName: 'করিম ও সহযোগী হেল্পার দল',
+        headCount: 6,
+        wage: 3900,
+        date: '2026-10-07',
+        ownerEmail: 'contractor@construction.com'
+      },
+      {
+        id: 'ATT-103',
+        projectId: 'PRJ-102',
+        projectName: 'উত্তরা সেক্টর-৩ কমার্শিয়াল',
+        workerName: 'আব্দুল কাদের (স্যানিটারি মিস্ত্রি)',
+        headCount: 2,
+        wage: 1700,
+        date: '2026-10-06',
+        ownerEmail: 'contractor@construction.com'
+      },
+      {
+        id: 'ATT-104',
+        projectId: 'PRJ-102',
+        projectName: 'উত্তরা সেক্টর-৩ কমার্শিয়াল',
+        workerName: 'জসিম উদ্দিন (রড বাইন্ডিং দল)',
+        headCount: 5,
+        wage: 4500,
+        date: '2026-10-06',
+        ownerEmail: 'contractor@construction.com'
+      },
+      {
+        id: 'ATT-105',
+        projectId: 'PRJ-103',
+        projectName: 'পদ্মা রিভারভিউ রিসোর্ট ভিলা',
+        workerName: 'শাহ আলম (ইলেকট্রিশিয়ান টিম)',
+        headCount: 3,
+        wage: 2850,
+        date: '2026-10-07',
+        ownerEmail: 'engineer@site.com'
+      }
+    ];
+
+    const MOCK_PETTY_CASH = [
+      {
+        id: 'EXP-101',
+        projectId: 'PRJ-101',
+        projectName: 'বনানী জি+৬ রেসিডেন্সিয়াল',
+        title: 'ছাদ ঢালাই মিস্ত্রিদের চা ও বিকালের নাস্তা',
+        amount: 480,
+        date: '2026-10-07',
+        ownerEmail: 'contractor@construction.com'
+      },
+      {
+        id: 'EXP-102',
+        projectId: 'PRJ-101',
+        projectName: 'বনানী জি+৬ রেসিডেন্সিয়াল',
+        title: 'লোকাল সিএনজি ভাড়া - রড স্যাম্পল কালেকশন',
+        amount: 250,
+        date: '2026-10-07',
+        ownerEmail: 'contractor@construction.com'
+      },
+      {
+        id: 'EXP-103',
+        projectId: 'PRJ-102',
+        projectName: 'উত্তরা সেক্টর-৩ কমার্শিয়াল',
+        title: 'সাইট পেরেক ও বাইন্ডিং তার ক্রয় (Small Hardware)',
+        amount: 850,
+        date: '2026-10-06',
+        ownerEmail: 'contractor@construction.com'
+      },
+      {
+        id: 'EXP-104',
+        projectId: 'PRJ-103',
+        projectName: 'পদ্মা রিভারভিউ রিসোর্ট ভিলা',
+        title: 'আর্কিটেকচারাল লেআউট প্ল্যান কালার প্রিন্ট ও ফটোকপি',
+        amount: 320,
+        date: '2026-10-06',
+        ownerEmail: 'engineer@site.com'
+      }
+    ];
+
+    const MOCK_VENDOR_ALERTS = [
+      {
+        id: 'VND-01',
+        vendorName: 'মেসার্স শাহ সিমেন্ট এজেন্সি',
+        materialCategory: 'Cement / সিমেন্ট',
+        siteName: 'বনানী জি+৬ রেসিডেন্সিয়াল',
+        dueAmount: 100000,
+        phone: '01711223344',
+        severity: 'high', // high = red/rose, medium = amber
+        ownerEmail: 'contractor@construction.com'
+      },
+      {
+        id: 'VND-02',
+        vendorName: 'সততা অটো ব্রিকস (টঙ্গী ডিপো)',
+        materialCategory: 'Red Bricks / লাল ইট',
+        siteName: 'উত্তরা সেক্টর-৩ কমার্শিয়াল',
+        dueAmount: 45000,
+        phone: '01819556677',
+        severity: 'medium',
+        ownerEmail: 'contractor@construction.com'
+      },
+      {
+        id: 'VND-03',
+        vendorName: 'যমুনা স্যান্ড অ্যান্ড স্টোন সাপ্লাই',
+        materialCategory: 'Sand / সিলেট বালু',
+        siteName: 'বনানী জি+৬ রেসিডেন্সিয়াল',
+        dueAmount: 60000,
+        phone: '01912334455',
+        severity: 'high',
+        ownerEmail: 'contractor@construction.com'
+      },
+      {
+        id: 'VND-04',
+        vendorName: 'বিসমিল্লাহ হার্ডওয়্যার অ্যান্ড স্যানিটারি',
+        materialCategory: 'Hardware & Fittings',
+        siteName: 'পদ্মা রিভারভিউ রিসোর্ট ভিলা',
+        dueAmount: 50000,
+        phone: '01711998877',
+        severity: 'high',
+        ownerEmail: 'engineer@site.com'
+      },
+      {
+        id: 'VND-05',
+        vendorName: 'জনতা কালার অ্যান্ড পেইন্ট স্টোর',
+        materialCategory: 'Paints & Primer',
+        siteName: 'পদ্মা রিভারভিউ রিসোর্ট ভিলা',
+        dueAmount: 22000,
+        phone: '01611002233',
+        severity: 'medium',
+        ownerEmail: 'engineer@site.com'
+      }
+    ];
+
+    // ==========================================
+    // 🎯 4. ROW-LEVEL SECURITY (RLS) FILTERING LOGIC
+    // ==========================================
+    /**
+     * Filters any entity list based on Row Owner or Super Admin Exception
+     * @param {Array} list - collection of objects containing ownerEmail
+     * @param {string} userEmail - currently logged-in user email
+     * @returns {Array} - allowed objects
+     */
+    function applyRowLevelSecurity(list, userEmail) {
+      // 👑 Super Admin Exception: Can view and aggregate ALL records
+      if (userEmail === 'admin@yourdomain.com') {
+        return list;
+      }
+      // Standard User: strictly ownerEmail === LoggedInUserEmail
+      return list.filter(item => item.ownerEmail === userEmail);
+    }
+
+    // Role switcher simulation function
+    function switchUser(email, role) {
+      loggedInUser = { email, role };
+      selectedProjectFilter = 'all';
+
+      // Update RLS Badges UI
+      document.getElementById('current-user-email-badge').textContent = email;
+      const roleBadge = document.getElementById('current-role-badge');
+      const rlsDesc = document.getElementById('rls-description');
+      const iconBox = document.getElementById('rls-icon-box');
+
+      if (email === 'admin@yourdomain.com') {
+        roleBadge.textContent = 'SUPER ADMIN (RLS Bypassed 👑)';
+        roleBadge.className = 'text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-purple-500/10 text-purple-400 border border-purple-500/30';
+        rlsDesc.innerHTML = '👑 <strong>সুপার এডমিন অ্যাক্সেস:</strong> Row-Level Security বাইপাস করা হয়েছে। আপনি সমগ্র প্রতিষ্ঠানের <strong>সকল প্রজেক্ট ও সকল কন্ট্রাক্টরের</strong> হিসাব একসাথে দেখতে পাচ্ছেন।';
+        iconBox.className = 'w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 flex-shrink-0';
+      } else {
+        roleBadge.textContent = `${role.toUpperCase()} (RLS Active)`;
+        roleBadge.className = 'text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30';
+        rlsDesc.innerHTML = `🔒 <strong>Row-Level Security সক্রিয়:</strong> আপনি শুধুমাত্র আপনার প্রজেক্ট (<span class="font-mono">ownerEmail</span>) অনুযায়ী ফিল্টারকৃত রোল-আপ ডেটা ও হিসাব দেখতে পাচ্ছেন।`;
+        iconBox.className = 'w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 flex-shrink-0';
+      }
+
+      // Update Simulation Buttons styling
+      ['cont', 'eng', 'admin'].forEach(id => {
+        const btn = document.getElementById(`btn-user-${id}`);
+        if (!btn) return;
+        btn.className = 'px-2.5 py-1 text-xs rounded-lg transition font-medium text-slate-400 hover:text-slate-200';
+      });
+
+      if (role === 'Contractor') {
+        document.getElementById('btn-user-cont').className = 'px-2.5 py-1 text-xs rounded-lg transition font-bold bg-amber-500 text-slate-950 shadow-sm';
+      } else if (role === 'Site Engineer') {
+        document.getElementById('btn-user-eng').className = 'px-2.5 py-1 text-xs rounded-lg transition font-bold bg-amber-500 text-slate-950 shadow-sm';
+      } else {
+        document.getElementById('btn-user-admin').className = 'px-2.5 py-1 text-xs rounded-lg transition font-bold bg-purple-500 text-slate-950 shadow-sm';
+      }
+
+      populateProjectDropdowns();
+      renderDashboard();
+    }
+
+    // Populate Project Selectors based on allowed projects
+    function populateProjectDropdowns() {
+      const allowedProjects = applyRowLevelSecurity(MOCK_PROJECTS, loggedInUser.email);
+      const selDesktop = document.getElementById('project-selector');
+      const selMobile = document.getElementById('project-selector-mobile');
+
+      let optionsHtml = `<option value="all">সব সাইট / অল প্রজেক্ট (${allowedProjects.length})</option>`;
+      allowedProjects.forEach(p => {
+        optionsHtml += `<option value="${p.id}">${p.name}</option>`;
+      });
+
+      if (selDesktop) selDesktop.innerHTML = optionsHtml;
+      if (selMobile) selMobile.innerHTML = optionsHtml;
+    }
+
+    function handleProjectChange(val) {
+      selectedProjectFilter = val;
+      const selDesktop = document.getElementById('project-selector');
+      const selMobile = document.getElementById('project-selector-mobile');
+      if (selDesktop) selDesktop.value = val;
+      if (selMobile) selMobile.value = val;
+      renderDashboard();
+    }
+
+    // ==========================================
+    // MAIN DASHBOARD AGGREGATION & RENDERER
+    // ==========================================
+    function renderDashboard() {
+      // 1. Apply RLS
+      let visibleProjects = applyRowLevelSecurity(MOCK_PROJECTS, loggedInUser.email);
+      let visibleMaterials = applyRowLevelSecurity(MOCK_MATERIALS, loggedInUser.email);
+      let visibleLabor = applyRowLevelSecurity(MOCK_LABOR, loggedInUser.email);
+      let visiblePetty = applyRowLevelSecurity(MOCK_PETTY_CASH, loggedInUser.email);
+      let visibleAlerts = applyRowLevelSecurity(MOCK_VENDOR_ALERTS, loggedInUser.email);
+
+      // 2. Filter by selected project if specific project is chosen
+      if (selectedProjectFilter !== 'all') {
+        visibleProjects = visibleProjects.filter(p => p.id === selectedProjectFilter);
+        visibleMaterials = visibleMaterials.filter(m => m.projectId === selectedProjectFilter);
+        visibleLabor = visibleLabor.filter(l => l.projectId === selectedProjectFilter);
+        visiblePetty = visiblePetty.filter(e => e.projectId === selectedProjectFilter);
+        visibleAlerts = visibleAlerts.filter(a => {
+          // match project by name or metadata
+          const pObj = MOCK_PROJECTS.find(p => p.id === selectedProjectFilter);
+          return pObj && a.siteName.includes(pObj.name.substring(0, 5));
+        });
+      }
+
+      // ====================================================
+      // 🎯 1. Financial Overviews & Grand Total Calculation
+      // ====================================================
+      const totalMaterialCost = visibleMaterials.reduce((acc, curr) => acc + curr.cost, 0);
+      const totalLaborCost = visibleLabor.reduce((acc, curr) => acc + curr.wage, 0);
+      const totalPettyCost = visiblePetty.reduce((acc, curr) => acc + curr.amount, 0);
+      const grandTotalCost = totalMaterialCost + totalLaborCost + totalPettyCost;
+
+      const totalLaborHeads = visibleLabor.reduce((acc, curr) => acc + curr.headCount, 0);
+
+      // Update UI Elements
+      document.getElementById('grand-total-cost').textContent = grandTotalCost.toLocaleString('en-IN');
+      document.getElementById('breakdown-material-cost').textContent = totalMaterialCost.toLocaleString('en-IN');
+      document.getElementById('breakdown-labor-cost').textContent = totalLaborCost.toLocaleString('en-IN');
+      document.getElementById('breakdown-petty-cost').textContent = totalPettyCost.toLocaleString('en-IN');
+
+      document.getElementById('active-projects-count').textContent = `${visibleProjects.length} টি প্রজেক্ট`;
+      document.getElementById('material-entry-count').textContent = `${visibleMaterials.length} টি চালান`;
+      document.getElementById('labor-head-count').textContent = `${totalLaborHeads} জন`;
+      document.getElementById('petty-voucher-count').textContent = `${visiblePetty.length} টি ভাউচার`;
+
+      // ====================================================
+      // 🎯 2. Running Phase & Project Progress Visuals
+      // ====================================================
+      const primaryProject = visibleProjects.length > 0 ? visibleProjects[0] : null;
+
+      if (primaryProject) {
+        document.getElementById('running-phase-title').textContent = primaryProject.runningPhase;
+        document.getElementById('running-phase-location').textContent = `সাইট: ${primaryProject.name} | ${primaryProject.location}`;
+        document.getElementById('phase-start-date').textContent = primaryProject.phaseStartDate;
+        document.getElementById('phase-est-end').textContent = primaryProject.phaseEstEnd;
+        document.getElementById('phase-supervisor-badge').textContent = `তত্ত্বাবধায়ক: ${primaryProject.supervisor}`;
+        document.getElementById('phase-timeline-bar').style.width = `${primaryProject.phaseTimelinePercent}%`;
+
+        // Circular Chart
+        const overallPct = primaryProject.overallProgress;
+        document.getElementById('circular-percentage-text').textContent = `${overallPct}%`;
+        
+        // Circumference for r=50 is 2 * PI * 50 = 314.159
+        const circumference = 314.159;
+        const offset = circumference - (overallPct / 100) * circumference;
+        const ring = document.getElementById('circular-progress-bar');
+        if (ring) {
+          ring.style.strokeDashoffset = offset;
+        }
+
+        // Sub-bars
+        document.getElementById('bar-civil-pct').textContent = `${primaryProject.civilPercent}%`;
+        document.getElementById('bar-civil-fill').style.width = `${primaryProject.civilPercent}%`;
+
+        document.getElementById('bar-masonry-pct').textContent = `${primaryProject.masonryPercent}%`;
+        document.getElementById('bar-masonry-fill').style.width = `${primaryProject.masonryPercent}%`;
+
+        document.getElementById('bar-mep-pct').textContent = `${primaryProject.mepPercent}%`;
+        document.getElementById('bar-mep-fill').style.width = `${primaryProject.mepPercent}%`;
+
+        document.getElementById('bar-finish-pct').textContent = `${primaryProject.finishingPercent}%`;
+        document.getElementById('bar-finish-fill').style.width = `${primaryProject.finishingPercent}%`;
+
+        const badge = document.getElementById('progress-status-badge');
+        if (overallPct >= 75) {
+          badge.textContent = 'অগ্রগতি অত্যন্ত দ্রুত 🚀';
+          badge.className = 'px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+        } else if (overallPct >= 50) {
+          badge.textContent = 'অগ্রগতি স্বাভাবিক ও স্থিতিশীল';
+          badge.className = 'px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20';
+        } else {
+          badge.textContent = 'প্রাথমিক পর্যায়';
+          badge.className = 'px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20';
+        }
+      } else {
+        document.getElementById('running-phase-title').textContent = 'কোনো সক্রিয় সাইট পাওয়া যায়নি';
+        document.getElementById('running-phase-location').textContent = 'অনুগ্রহ করে নতুন প্রজেক্ট তৈরি করুন';
+        document.getElementById('circular-percentage-text').textContent = '0%';
+        document.getElementById('circular-progress-bar').style.strokeDashoffset = 314.159;
+      }
+
+      // ====================================================
+      // 🎯 3. Alerts & Notifications Section (Pending Dues)
+      // ====================================================
+      const alertsContainer = document.getElementById('alerts-list-container');
+      const totalDueSum = visibleAlerts.reduce((acc, curr) => acc + curr.dueAmount, 0);
+
+      document.getElementById('alerts-count-badge').textContent = `${visibleAlerts.length} টি বাকি পাওনা`;
+      document.getElementById('total-pending-dues-amount').textContent = `৳ ${totalDueSum.toLocaleString('en-IN')}`;
+
+      if (visibleAlerts.length === 0) {
+        alertsContainer.innerHTML = `
+          <div class="col-span-full py-8 text-center bg-slate-950/60 rounded-2xl border border-slate-800">
+            <div class="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto mb-2">
+              <i data-lucide="check-circle" class="w-5 h-5"></i>
+            </div>
+            <p class="text-sm font-semibold text-slate-200">কোনো বকেয়া পাওনা বা সতর্কতা নোটিফিকেশন নেই!</p>
+            <p class="text-xs text-slate-500 mt-0.5">সব ভেন্ডর ও লেবার পেমেন্ট সম্পূর্ণ পরিশোধিত আছে।</p>
+          </div>
+        `;
+      } else {
+        alertsContainer.innerHTML = visibleAlerts.map(alert => {
+          const isHigh = alert.severity === 'high';
+          const cardBorder = isHigh ? 'border-rose-500/40 bg-rose-500/[0.04]' : 'border-amber-500/40 bg-amber-500/[0.04]';
+          const badgeStyle = isHigh ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' : 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+          const amountColor = isHigh ? 'text-rose-400' : 'text-amber-400';
+
+          return `
+            <div class="border ${cardBorder} rounded-2xl p-4 flex flex-col justify-between transition hover:border-slate-700 bg-slate-900/90 shadow-sm">
+              <div>
+                <div class="flex items-start justify-between gap-2 mb-2">
+                  <div class="flex items-center gap-1.5 min-w-0">
+                    <span class="w-2 h-2 rounded-full ${isHigh ? 'bg-rose-500 animate-pulse' : 'bg-amber-400'} flex-shrink-0"></span>
+                    <h4 class="font-bold text-xs sm:text-sm text-slate-100 truncate">${alert.vendorName}</h4>
+                  </div>
+                  <span class="text-[10px] font-mono px-2 py-0.5 rounded-md border ${badgeStyle} flex-shrink-0 font-bold">
+                    ${isHigh ? 'জরুরি প্রদেয়' : 'চলমান বাকি'}
+                  </span>
+                </div>
+
+                <p class="text-[11px] text-slate-400 flex items-center gap-1 mb-1 truncate">
+                  <i data-lucide="tag" class="w-3 h-3 text-slate-500 flex-shrink-0"></i>
+                  <span>${alert.materialCategory}</span>
+                </p>
+
+                <p class="text-[11px] text-slate-400 flex items-center gap-1 truncate">
+                  <i data-lucide="map-pin" class="w-3 h-3 text-slate-500 flex-shrink-0"></i>
+                  <span>${alert.siteName}</span>
+                </p>
+              </div>
+
+              <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between">
+                <div>
+                  <span class="text-[10px] text-slate-500 uppercase font-semibold block">বকেয়া পাওনা (Due)</span>
+                  <div class="text-base sm:text-lg font-black font-mono ${amountColor}">
+                    ৳ ${alert.dueAmount.toLocaleString('en-IN')}
+                  </div>
+                </div>
+
+                <a 
+                  href="tel:${alert.phone}" 
+                  class="bg-slate-950 hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs px-2.5 py-1.5 rounded-xl transition flex items-center gap-1 font-medium"
+                  title="ভেন্ডরকে কল করুন"
+                >
+                  <i data-lucide="phone" class="w-3.5 h-3.5 text-amber-400"></i>
+                  <span class="hidden sm:inline">কল করুন</span>
+                </a>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // ====================================================
+      // 🎯 4. Recent Feed / Mini Audit Table
+      // ====================================================
+      const tbody = document.getElementById('recent-activity-tbody');
+      const recentFeed = [
+        ...visibleMaterials.map(m => ({ date: m.date, mod: 'মালামাল', title: m.title, site: m.projectName, amount: m.cost, badge: 'blue' })),
+        ...visibleLabor.map(l => ({ date: l.date, mod: 'শ্রমিক', title: l.workerName, site: l.projectName, amount: l.wage, badge: 'emerald' })),
+        ...visiblePetty.map(e => ({ date: e.date, mod: 'খুচরা খরচ', title: e.title, site: e.projectName, amount: e.amount, badge: 'amber' }))
+      ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
+
+      if (recentFeed.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-500">কোনো সাম্প্রতিক রেকর্ড পাওয়া যায়নি</td></tr>`;
+      } else {
+        tbody.innerHTML = recentFeed.map(item => {
+          let badgeClass = 'bg-slate-800 text-slate-300';
+          if (item.badge === 'blue') badgeClass = 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
+          if (item.badge === 'emerald') badgeClass = 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+          if (item.badge === 'amber') badgeClass = 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+
+          return `
+            <tr class="hover:bg-slate-800/40 transition">
+              <td class="py-2.5 px-3 font-mono text-[11px] text-slate-400">${item.date}</td>
+              <td class="py-2.5 px-3">
+                <span class="text-[10px] px-2 py-0.5 rounded font-medium ${badgeClass}">
+                  ${item.mod}
+                </span>
+              </td>
+              <td class="py-2.5 px-3 text-slate-200 max-w-[200px] truncate">${item.title}</td>
+              <td class="py-2.5 px-3 text-slate-400 max-w-[150px] truncate">${item.site}</td>
+              <td class="py-2.5 px-3 font-mono font-bold text-right text-slate-100">৳ ${item.amount.toLocaleString('en-IN')}</td>
+              <td class="py-2.5 px-3 text-center">
+                <span class="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-medium">
+                  <i data-lucide="check" class="w-3 mx-auto"></i> অনুমোদিত
+                </span>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      // Re-trigger icons
+      lucide.createIcons();
+    }
+
+    // Initialize on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      populateProjectDropdowns();
+      renderDashboard();
+    });
+  </script>
+</body>
+</html>
