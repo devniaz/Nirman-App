@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="bn" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vendors & Suppliers Management - Construction SaaS</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#fffbeb',
+              100: '#fef3c7',
+              400: '#fbbf24',
+              500: '#f59e0b',
+              600: '#d97706'
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-amber-500 selection:text-slate-950">
+
+  <!-- ================= APP HEADER ================= -->
+  <header class="border-b border-slate-800 bg-slate-900/90 sticky top-0 z-30 backdrop-blur">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold">
+          🏗️
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold text-slate-100 tracking-tight">ভেন্ডর ও সরবরাহকারী খাতা</h1>
+          <p class="text-xs text-slate-400">Construction Site & Contractor Vendor Ledger</p>
+        </div>
+      </div>
+
+      <!-- Super Admin / Contractor Session Switcher for Testing RLS -->
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-slate-400 hidden sm:inline">লগইন সেশন:</span>
+        <select id="userSessionSelect" onchange="switchUserSession(this.value)" class="bg-slate-950 border border-slate-700 text-amber-400 text-xs rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-amber-500 font-mono">
+          <option value="contractor@construction.com">👷 contractor@construction.com (RLS Active)</option>
+          <option value="engineer@site.com">📐 engineer@site.com (RLS Active)</option>
+          <option value="admin@yourdomain.com">👑 admin@yourdomain.com (Super Admin Bypass)</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= MAIN CONTAINER ================= -->
+  <main class="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
+
+    <!-- 1. Row-Level Security (RLS) Status Banner -->
+    <div id="rlsBanner" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+      <div class="flex items-center gap-3">
+        <div id="rlsIconBadge" class="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-lg">
+          🔒
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span id="currentEmailBadge" class="text-xs font-bold text-slate-100 font-mono">contractor@construction.com</span>
+            <span id="rlsStatusPill" class="text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-slate-800 text-amber-300 border border-amber-500/30">
+              ROW OWNER (RLS Active)
+            </span>
+          </div>
+          <p id="rlsExplanationText" class="text-[11px] text-slate-400 mt-0.5">
+            নিরাপত্তা ফিল্টারিং সক্রিয়: আপনি শুধুমাত্র আপনার তৈরি করা (Created_By_Email) ভেন্ডরগুলোর হিসাব দেখতে পাচ্ছেন।
+          </p>
+        </div>
+      </div>
+
+      <button onclick="openAddVendorModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-1.5 self-start sm:self-auto">
+        <span>+ নতুন ভেন্ডর যুক্ত করুন</span>
+      </button>
+    </div>
+
+    <!-- 2. Financial Metrics Overview Strip -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <span class="text-[11px] text-slate-400 font-medium block mb-1">দৃশ্যমান ভেন্ডর</span>
+        <div id="metricVendorCount" class="text-2xl font-bold font-mono text-slate-100">0 জন</div>
+        <span id="metricDbTotal" class="text-[10px] text-slate-500 font-mono mt-1 block">ডাটাবেজ মোট: 0</span>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <span class="text-[11px] text-slate-400 font-medium block mb-1">মোট ক্রয় (Purchase)</span>
+        <div id="metricTotalPurchase" class="text-2xl font-bold font-mono text-slate-100">৳ 0</div>
+        <span class="text-[10px] text-slate-500 mt-1 block">সংগৃহীত চালান অনুযায়ী</span>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <span class="text-[11px] text-slate-400 font-medium block mb-1">মোট পরিশোধ (Paid)</span>
+        <div id="metricTotalPaid" class="text-2xl font-bold font-mono text-slate-200">৳ 0</div>
+        <span class="text-[10px] text-slate-500 mt-1 block">ক্যাশ ও ব্যাংক মারফত</span>
+      </div>
+
+      <div id="metricDueCard" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 transition">
+        <span class="text-[11px] text-slate-400 font-medium block mb-1">পাওনা বাকি (Total Due)</span>
+        <div id="metricTotalDue" class="text-2xl font-bold font-mono text-slate-100">৳ 0</div>
+        <span id="metricDueStatusText" class="text-[10px] text-slate-500 mt-1 block">ব্যালেন্স ক্লিয়ার</span>
+      </div>
+    </div>
+
+    <!-- 3. Search and Category Filter Toolbar -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      <div class="flex-1 relative">
+        <input 
+          type="text" 
+          id="vendorSearchInput" 
+          oninput="renderVendorsDashboard()" 
+          placeholder="ভেন্ডরের নাম, ক্যাটাগরি বা ফোন দিয়ে খুঁজুন..." 
+          class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500"
+        />
+      </div>
+
+      <div class="flex items-center gap-2 overflow-x-auto">
+        <!-- Category Filter -->
+        <select id="categoryFilterSelect" onchange="renderVendorsDashboard()" class="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-amber-500">
+          <option value="all">সকল মালামাল</option>
+          <option value="Rod">রড (Rod)</option>
+          <option value="Cement">সিমেন্ট (Cement)</option>
+          <option value="Sand">বালু (Sand)</option>
+          <option value="Hardware">হার্ডওয়্যার (Hardware)</option>
+          <option value="Bricks">ইট (Bricks)</option>
+          <option value="Tiles">টাইলস (Tiles)</option>
+        </select>
+
+        <!-- Status Filter -->
+        <select id="dueStatusFilterSelect" onchange="renderVendorsDashboard()" class="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-amber-500">
+          <option value="all">সকল স্ট্যাটাস</option>
+          <option value="due">বাকি আছে (Due > 0)</option>
+          <option value="cleared">পরিশোধিত (Due = 0)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 4. Vendor Cards Grid (Responsive Mobile-first) -->
+    <div id="vendorCardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <!-- Injected via JavaScript -->
+    </div>
+
+    <!-- 5. Empty State Container -->
+    <div id="emptyStateContainer" class="hidden text-center py-12 bg-slate-900 border border-slate-800 rounded-2xl p-6">
+      <div class="text-4xl mb-3">🚚</div>
+      <h3 class="text-slate-200 font-bold mb-1 text-base">কোনো ভেন্ডর পাওয়া যায়নি</h3>
+      <p id="emptyStateMessage" class="text-xs text-slate-400 mb-4 max-w-md mx-auto">
+        এই ইউজারের অধীনে কোনো ভেন্ডর নিবন্ধিত নেই অথবা অনুসন্ধানের শর্তে কোনো রেকর্ড মেলেনি।
+      </p>
+      <button onclick="openAddVendorModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-xl shadow transition">
+        + নতুন ভেন্ডর যুক্ত করুন
+      </button>
+    </div>
+
+  </main>
+
+  <!-- ================= MODAL: DATA ENTRY FORM (ADD NEW VENDOR) ================= -->
+  <div id="addVendorModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md p-2.5 sm:p-4 md:p-6 flex justify-center items-start sm:items-center min-h-screen">
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-lg rounded-3xl shadow-2xl my-auto relative flex flex-col max-h-[92vh] sm:max-h-[90vh] overflow-hidden">
+      
+      <!-- Sticky Modal Header -->
+      <div class="flex items-center justify-between border-b border-slate-800 p-4 sm:p-5 bg-slate-900 flex-shrink-0 z-10">
+        <div class="flex items-center gap-2.5">
+          <div class="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30">
+            🚚
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-100 text-base">নতুন ভেন্ডর এন্ট্রি ফর্ম</h3>
+            <p class="text-[11px] text-slate-400">সরবরাহকারী প্রতিষ্ঠান ও প্রাথমিক ক্রয়-পরিশোধ তথ্য</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeAddVendorModal()" class="text-slate-400 hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-800 transition">
+          ✕
+        </button>
+      </div>
+
+      <!-- Scrollable Form Body -->
+      <form id="addVendorForm" onsubmit="handleVendorFormSubmit(event)" class="flex flex-col flex-1 min-h-0 overflow-hidden">
+        <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs overscroll-contain">
+          
+          <!-- Field 1: Vendor_Name -->
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">
+              ১. ভেন্ডর / সরবরাহকারী প্রতিষ্ঠানের নাম <span class="text-amber-400">*</span>
+            </label>
+            <input 
+              type="text" 
+              id="formVendorName" 
+              required 
+              placeholder="যেমন: মেসার্স শাহ সিমেন্ট এজেন্সি" 
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-slate-100 focus:outline-none focus:border-amber-500"
+            />
+          </div>
+
+          <!-- Field 2: Material_Category & Field 3: Phone -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-slate-300 font-semibold mb-1">
+                ২. মালামালের ক্যাটাগরি (Material Category) <span class="text-amber-400">*</span>
+              </label>
+              <select id="formMaterialCategory" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-slate-100 focus:outline-none focus:border-amber-500">
+                <option value="Rod">রড / স্টিল (Rod)</option>
+                <option value="Cement">সিমেন্ট (Cement)</option>
+                <option value="Sand">বালু (Sand)</option>
+                <option value="Hardware">হার্ডওয়্যার ও টুলস (Hardware)</option>
+                <option value="Bricks">লাল ইট (Bricks)</option>
+                <option value="Tiles">টাইলস (Tiles)</option>
+                <option value="Paint">রং (Paint)</option>
+                <option value="Other">অন্যান্য (Other)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-slate-300 font-semibold mb-1">
+                ৩. মোবাইল নম্বর (Phone) <span class="text-amber-400">*</span>
+              </label>
+              <input 
+                type="tel" 
+                id="formPhone" 
+                required 
+                placeholder="যেমন: 01711223344" 
+                class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-slate-100 font-mono focus:outline-none focus:border-amber-500"
+              />
+            </div>
+          </div>
+
+          <!-- Financial Calculation Container -->
+          <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 space-y-3.5">
+            <span class="text-[11px] font-bold text-amber-400 block uppercase tracking-wider">
+              💰 প্রাথমিক হিসাব (Financial Ledger)
+            </span>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <!-- Field 4: Total_Purchase -->
+              <div>
+                <label class="block text-slate-400 font-medium text-[11px] mb-1">
+                  ৪. মোট ক্রয় মূল্য (Total Purchase) ৳ <span class="text-amber-400">*</span>
+                </label>
+                <input 
+                  type="number" 
+                  id="formTotalPurchase" 
+                  min="0" 
+                  step="any" 
+                  required 
+                  placeholder="0" 
+                  oninput="updateModalDueCalculation()" 
+                  class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <!-- Field 5: Total_Paid -->
+              <div>
+                <label class="block text-slate-400 font-medium text-[11px] mb-1">
+                  ৫. মোট পরিশোধ (Total Paid) ৳ <span class="text-amber-400">*</span>
+                </label>
+                <input 
+                  type="number" 
+                  id="formTotalPaid" 
+                  min="0" 
+                  step="any" 
+                  required 
+                  placeholder="0" 
+                  oninput="updateModalDueCalculation()" 
+                  class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-amber-500"
+                />
+              </div>
+            </div>
+
+            <!-- Auto-Calculated Current_Payable_Due Display Card (Not a manual input) -->
+            <div id="formDuePreviewBox" class="p-3 rounded-xl border border-slate-800 bg-slate-900 flex items-center justify-between transition">
+              <div>
+                <span class="text-[10px] uppercase font-bold tracking-wider block text-slate-400">
+                  স্বয়ংক্রিয় বাকি হিসাব (Current Payable Due)
+                </span>
+                <div id="formLiveDueAmount" class="font-mono font-bold text-base mt-0.5 text-slate-200">
+                  ৳ 0 টাকা
+                </div>
+              </div>
+              <span id="formLiveDueBadge" class="text-[10px] px-2.5 py-1 rounded-full font-medium bg-slate-800 text-slate-300 border border-slate-700">
+                ব্যালেন্স শূন্য
+              </span>
+            </div>
+
+            <p class="text-[10px] text-slate-500 leading-relaxed">
+              💡 <strong>স্বয়ংক্রিয় হিসাব:</strong> Current_Payable_Due কোনো ইনপুট ফিল্ড নয়। মোট ক্রয় থেকে পরিশোধিত টাকা বাদ দিয়ে স্বয়ংক্রিয়ভাবে হিসাবটি সেভ হবে।
+            </p>
+          </div>
+
+          <!-- Creator Metadata (Created_By_Email) -->
+          <div class="p-2.5 bg-slate-950/60 rounded-xl border border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+            <span>এন্ট্রি করছেন (Created_By_Email):</span>
+            <span id="formCreatedByEmailDisplay" class="font-mono font-bold text-amber-400">contractor@construction.com</span>
+          </div>
+
+        </div>
+
+        <!-- Sticky Submit Footer -->
+        <div class="p-3.5 sm:p-4 border-t border-slate-800 bg-slate-900/95 flex-shrink-0 flex gap-3 z-10 shadow-lg">
+          <button type="button" onclick="closeAddVendorModal()" class="flex-1 bg-slate-800 text-slate-300 font-semibold py-3 rounded-xl hover:bg-slate-700 transition text-xs sm:text-sm">
+            বাতিল
+          </button>
+          <button type="submit" class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-3 rounded-xl transition shadow-lg shadow-amber-500/20 text-xs sm:text-sm flex items-center justify-center gap-2">
+            Save Vendor (সংরক্ষণ করুন)
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: QUICK PAYMENT MODAL (UI ONLY) ================= -->
+  <div id="paymentModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md p-2.5 sm:p-4 flex justify-center items-center min-h-screen">
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-md rounded-3xl shadow-2xl p-5 sm:p-6 space-y-4 text-xs">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div>
+          <h3 class="font-bold text-slate-100 text-base">ভেন্ডর পেমেন্ট রেকর্ড</h3>
+          <p id="paymentModalVendorName" class="text-[11px] text-slate-400">মেসার্স শাহ সিমেন্ট এজেন্সি</p>
+        </div>
+        <button type="button" onclick="closePaymentModal()" class="text-slate-400 hover:text-slate-200 p-1 rounded-lg">✕</button>
+      </div>
+
+      <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1 font-mono">
+        <div class="flex justify-between text-slate-400">
+          <span>মোট ক্রয়:</span> <span id="paymentModalPurchase">৳ 0</span>
+        </div>
+        <div class="flex justify-between text-slate-400">
+          <span>পরিশোধিত:</span> <span id="paymentModalPaid">৳ 0</span>
+        </div>
+        <div class="flex justify-between font-bold text-amber-400 pt-1 border-t border-slate-800">
+          <span>বর্তমান বাকি:</span> <span id="paymentModalDue">৳ 0</span>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-slate-300 font-semibold mb-1">নতুন পেমেন্টের পরিমাণ (টাকা) <span class="text-amber-400">*</span></label>
+        <input type="number" id="quickPaymentAmount" min="1" placeholder="যেমন: ৫০,০০০" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-slate-100 font-mono text-base font-bold focus:outline-none focus:border-amber-500" />
+      </div>
+
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="closePaymentModal()" class="flex-1 bg-slate-800 text-slate-300 py-3 rounded-xl font-semibold">বাতিল</button>
+        <button type="button" onclick="handleConfirmPayment()" class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-3 rounded-xl shadow">পেমেন্ট সেভ করুন</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= JAVASCRIPT LOGIC ================= -->
+  <script>
+    /**
+     * CONFIGURATION & CONSTANTS
+     */
+    const SUPER_ADMIN_EMAIL = "admin@yourdomain.com";
+
+    // Current logged-in user simulation state
+    let LoggedInUserEmail = "contractor@construction.com";
+
+    // Local in-memory / persisted database of vendors
+    let vendorsDatabase = [
+      {
+        id: "VND-101",
+        Vendor_Name: "মেসার্স শাহ সিমেন্ট এজেন্সি",
+        Material_Category: "Cement",
+        Phone: "01711223344",
+        Total_Purchase: 450000,
+        Total_Paid: 350000,
+        Current_Payable_Due: 100000, // 450000 - 350000
+        Created_By_Email: "contractor@construction.com"
+      },
+      {
+        id: "VND-102",
+        Vendor_Name: "বিএসআরএম স্টিল ট্রেডার্স",
+        Material_Category: "Rod",
+        Phone: "01819556677",
+        Total_Purchase: 820000,
+        Total_Paid: 820000,
+        Current_Payable_Due: 0, // Cleared balance
+        Created_By_Email: "contractor@construction.com"
+      },
+      {
+        id: "VND-103",
+        Vendor_Name: "যমুনা স্যান্ড অ্যান্ড স্টোন সাপ্লাই",
+        Material_Category: "Sand",
+        Phone: "01912334455",
+        Total_Purchase: 180000,
+        Total_Paid: 120000,
+        Current_Payable_Due: 60000,
+        Created_By_Email: "engineer@site.com"
+      },
+      {
+        id: "VND-104",
+        Vendor_Name: "জনতা হার্ডওয়্যার অ্যান্ড পেইন্ট স্টোর",
+        Material_Category: "Hardware",
+        Phone: "01611889900",
+        Total_Purchase: 95000,
+        Total_Paid: 95000,
+        Current_Payable_Due: 0,
+        Created_By_Email: "admin@yourdomain.com"
+      }
+    ];
+
+    let currentSelectedVendorForPayment = null;
+
+    /**
+     * 🎯 3. VISIBILITY & SECURITY LOGIC (Row-Level Security & Super Admin Access)
+     * Filters the vendor rows based on the logged-in email.
+     * 
+     * @param {Array} vendorsList - Array of all vendors in database
+     * @param {string} currentUserEmail - Email of active session
+     * @returns {Array} Filtered vendors
+     */
+    function getVisibleVendors(vendorsList, currentUserEmail) {
+      // EXCEPTION: Super Admin Access bypasses RLS and displays ALL vendors
+      if (currentUserEmail.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
+        return vendorsList;
+      }
+
+      // ROW OWNER RULE: Users can only see records they created
+      return vendorsList.filter(vendor => 
+        vendor.Created_By_Email.toLowerCase() === currentUserEmail.toLowerCase()
+      );
+    }
+
+    /**
+     * UI RENDERING: Dashboard Cards & Metrics
+     */
+    function renderVendorsDashboard() {
+      const container = document.getElementById('vendorCardsContainer');
+      const emptyState = document.getElementById('emptyStateContainer');
+      const searchKeyword = (document.getElementById('vendorSearchInput').value || '').toLowerCase().trim();
+      const selectedCategory = document.getElementById('categoryFilterSelect').value;
+      const selectedDueFilter = document.getElementById('dueStatusFilterSelect').value;
+
+      // 1. Apply Row-Level Security first
+      const rlsFiltered = getVisibleVendors(vendorsDatabase, LoggedInUserEmail);
+
+      // 2. Apply UI Filters (Search, Category, Due Status)
+      const displayedVendors = rlsFiltered.filter(vendor => {
+        const matchesSearch = !searchKeyword || 
+          vendor.Vendor_Name.toLowerCase().includes(searchKeyword) ||
+          vendor.Phone.includes(searchKeyword) ||
+          vendor.Material_Category.toLowerCase().includes(searchKeyword);
+
+        const matchesCategory = selectedCategory === 'all' || vendor.Material_Category === selectedCategory;
+
+        const matchesDue = selectedDueFilter === 'all' || 
+          (selectedDueFilter === 'due' ? vendor.Current_Payable_Due > 0 : vendor.Current_Payable_Due === 0);
+
+        return matchesSearch && matchesCategory && matchesDue;
+      });
+
+      // 3. Update Financial Metrics
+      updateMetricsStrip(rlsFiltered);
+
+      // 4. Render Cards
+      if (displayedVendors.length === 0) {
+        container.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        document.getElementById('emptyStateMessage').textContent = 
+          LoggedInUserEmail === SUPER_ADMIN_EMAIL 
+            ? "ডাটাবেজে কোনো ভেন্ডর নেই বা সার্চ ফিল্টারের সাথে মিল পাওয়া যায়নি।" 
+            : `"${LoggedInUserEmail}" ইউজারের নামে কোনো ভেন্ডর মেলেনি। নতুন ভেন্ডর যুক্ত করুন অথবা সেশন সুইচ করুন।`;
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      container.innerHTML = displayedVendors.map(vendor => {
+        const hasDue = vendor.Current_Payable_Due > 0;
+
+        /**
+         * 🎯 2. DYNAMIC DUE AMOUNT STYLING:
+         * Uses the app's existing theme palette (no hardcoded red or green).
+         * - Due > 0 : Warm theme accent border & background with warning indicator.
+         * - Due = 0 : Neutral slate theme border with settled badge.
+         */
+        const dueBoxThemeClass = hasDue 
+          ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+          : 'bg-slate-950/70 border-slate-800 text-slate-300';
+
+        const dueBadgeMarkup = hasDue
+          ? `<span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-medium flex items-center gap-1">
+               ⏳ বাকি রয়েছে
+             </span>`
+          : `<span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 font-medium flex items-center gap-1">
+               ✓ পরিশোধিত
+             </span>`;
+
+        return `
+          <div class="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl p-4 sm:p-5 transition shadow-sm flex flex-col justify-between gap-4">
+            
+            <!-- Card Header: Vendor Name & Category -->
+            <div class="space-y-2">
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <h3 class="font-bold text-slate-100 text-base leading-snug">${escapeHtml(vendor.Vendor_Name)}</h3>
+                  <div class="flex items-center gap-2 mt-1">
+                    <span class="text-[11px] px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 font-medium">
+                      📦 ${escapeHtml(vendor.Material_Category)}
+                    </span>
+                    <span class="text-[10px] text-slate-500 font-mono">ID: ${vendor.id}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Phone Link -->
+              <div class="pt-1">
+                <a href="tel:${vendor.Phone}" class="inline-flex items-center gap-1.5 text-xs text-slate-300 hover:text-amber-400 font-mono transition">
+                  <span>📞</span>
+                  <span>${escapeHtml(vendor.Phone)}</span>
+                </a>
+              </div>
+
+              <!-- Row Owner Metadata Tag -->
+              <div class="text-[10px] text-slate-500 font-mono truncate">
+                By: <span class="text-slate-400">${escapeHtml(vendor.Created_By_Email)}</span>
+              </div>
+            </div>
+
+            <!-- Financial Data Section -->
+            <div class="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3 space-y-2">
+              <div class="flex justify-between items-center text-xs">
+                <span class="text-slate-400">মোট ক্রয় (Total Purchase):</span>
+                <span class="font-mono font-bold text-slate-200">৳ ${vendor.Total_Purchase.toLocaleString()}</span>
+              </div>
+
+              <div class="flex justify-between items-center text-xs">
+                <span class="text-slate-400">মোট পরিশোধ (Total Paid):</span>
+                <span class="font-mono text-slate-200 font-semibold">৳ ${vendor.Total_Paid.toLocaleString()}</span>
+              </div>
+
+              <!-- Dynamic Due Box -->
+              <div class="mt-2 pt-2 border-t border-slate-800/80 flex items-center justify-between p-2.5 rounded-lg border ${dueBoxThemeClass}">
+                <div>
+                  <span class="text-[10px] uppercase font-bold tracking-wider block opacity-80">
+                    বাকি পাওনা (Current Due)
+                  </span>
+                  <div class="font-mono font-extrabold text-base tracking-tight">
+                    ৳ ${vendor.Current_Payable_Due.toLocaleString()}
+                  </div>
+                </div>
+                <div>${dueBadgeMarkup}</div>
+              </div>
+            </div>
+
+            <!-- Quick Action Buttons -->
+            <div class="flex items-center gap-2 pt-1">
+              <a href="tel:${vendor.Phone}" class="flex-1 bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition text-center">
+                <span>📞 কল দিন</span>
+              </a>
+
+              <button type="button" onclick="openPaymentModal('${vendor.id}')" class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-sm">
+                <span>💳 পেমেন্ট দিন</span>
+              </button>
+            </div>
+
+          </div>
+        `;
+      }).join('');
+    }
+
+    /**
+     * UPDATE METRICS STRIP
+     */
+    function updateMetricsStrip(visibleList) {
+      const totalPurchases = visibleList.reduce((acc, v) => acc + (v.Total_Purchase || 0), 0);
+      const totalPaid = visibleList.reduce((acc, v) => acc + (v.Total_Paid || 0), 0);
+      const totalDue = visibleList.reduce((acc, v) => acc + (v.Current_Payable_Due || 0), 0);
+
+      document.getElementById('metricVendorCount').textContent = `${visibleList.length} জন`;
+      document.getElementById('metricDbTotal').textContent = `ডাটাবেজ মোট: ${vendorsDatabase.length}`;
+      document.getElementById('metricTotalPurchase').textContent = `৳ ${totalPurchases.toLocaleString()}`;
+      document.getElementById('metricTotalPaid').textContent = `৳ ${totalPaid.toLocaleString()}`;
+      document.getElementById('metricTotalDue').textContent = `৳ ${totalDue.toLocaleString()}`;
+
+      const dueCard = document.getElementById('metricDueCard');
+      const dueStatusText = document.getElementById('metricDueStatusText');
+      if (totalDue > 0) {
+        dueCard.className = "bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 transition text-amber-300";
+        dueStatusText.textContent = "পেন্ডিং পাওনা বাকি রয়েছে";
+      } else {
+        dueCard.className = "bg-slate-900 border border-slate-800 rounded-2xl p-4 transition text-slate-100";
+        dueStatusText.textContent = "সকল ব্যালেন্স ক্লিয়ার";
+      }
+    }
+
+    /**
+     * 🎯 1. DATA ENTRY FORM SUBMISSION (Add New Vendor)
+     */
+    function handleVendorFormSubmit(event) {
+      event.preventDefault();
+
+      const name = document.getElementById('formVendorName').value.trim();
+      const category = document.getElementById('formMaterialCategory').value;
+      const phone = document.getElementById('formPhone').value.trim();
+      const purchase = parseFloat(document.getElementById('formTotalPurchase').value) || 0;
+      const paid = parseFloat(document.getElementById('formTotalPaid').value) || 0;
+
+      // Real-time calculation logic
+      const calculatedDue = Math.max(0, purchase - paid);
+
+      const newVendor = {
+        id: "VND-" + Math.floor(100 + Math.random() * 900),
+        Vendor_Name: name,
+        Material_Category: category,
+        Phone: phone,
+        Total_Purchase: purchase,
+        Total_Paid: paid,
+        Current_Payable_Due: calculatedDue, // Auto-calculated via logic
+        Created_By_Email: LoggedInUserEmail  // Row ownership
+      };
+
+      // Add to database
+      vendorsDatabase.unshift(newVendor);
+
+      // Close modal and reset form
+      closeAddVendorModal();
+      document.getElementById('addVendorForm').reset();
+      updateModalDueCalculation();
+
+      // Refresh dashboard
+      renderVendorsDashboard();
+    }
+
+    /**
+     * LIVE DUE CALCULATION FOR MODAL
+     */
+    function updateModalDueCalculation() {
+      const purchase = parseFloat(document.getElementById('formTotalPurchase').value) || 0;
+      const paid = parseFloat(document.getElementById('formTotalPaid').value) || 0;
+      const liveDue = Math.max(0, purchase - paid);
+
+      const previewText = document.getElementById('formLiveDueAmount');
+      const previewBadge = document.getElementById('formLiveDueBadge');
+      const previewBox = document.getElementById('formDuePreviewBox');
+
+      previewText.textContent = `৳ ${liveDue.toLocaleString()} টাকা`;
+
+      if (liveDue > 0) {
+        previewBox.className = "p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 flex items-center justify-between transition text-amber-300";
+        previewBadge.className = "text-[10px] px-2.5 py-1 rounded-full font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30";
+        previewBadge.textContent = "বাকি থাকবে";
+      } else {
+        previewBox.className = "p-3 rounded-xl border border-slate-800 bg-slate-900 flex items-center justify-between transition text-slate-300";
+        previewBadge.className = "text-[10px] px-2.5 py-1 rounded-full font-medium bg-slate-800 text-slate-300 border border-slate-700";
+        previewBadge.textContent = "পরিশোধিত ব্যালেন্স";
+      }
+    }
+
+    /**
+     * MODAL TOGGLES
+     */
+    function openAddVendorModal() {
+      document.getElementById('formCreatedByEmailDisplay').textContent = LoggedInUserEmail;
+      document.getElementById('addVendorModal').classList.remove('hidden');
+      updateModalDueCalculation();
+    }
+
+    function closeAddVendorModal() {
+      document.getElementById('addVendorModal').classList.add('hidden');
+    }
+
+    function openPaymentModal(vendorId) {
+      const vendor = vendorsDatabase.find(v => v.id === vendorId);
+      if (!vendor) return;
+
+      currentSelectedVendorForPayment = vendor;
+      document.getElementById('paymentModalVendorName').textContent = vendor.Vendor_Name;
+      document.getElementById('paymentModalPurchase').textContent = `৳ ${vendor.Total_Purchase.toLocaleString()}`;
+      document.getElementById('paymentModalPaid').textContent = `৳ ${vendor.Total_Paid.toLocaleString()}`;
+      document.getElementById('paymentModalDue').textContent = `৳ ${vendor.Current_Payable_Due.toLocaleString()}`;
+      document.getElementById('quickPaymentAmount').value = '';
+
+      document.getElementById('paymentModal').classList.remove('hidden');
+    }
+
+    function closePaymentModal() {
+      document.getElementById('paymentModal').classList.add('hidden');
+      currentSelectedVendorForPayment = null;
+    }
+
+    function handleConfirmPayment() {
+      if (!currentSelectedVendorForPayment) return;
+      const amount = parseFloat(document.getElementById('quickPaymentAmount').value) || 0;
+      if (amount <= 0) {
+        alert("অনুগ্রহ করে সঠিক পেমেন্ট পরিমাণ লিখুন");
+        return;
+      }
+
+      currentSelectedVendorForPayment.Total_Paid += amount;
+      currentSelectedVendorForPayment.Current_Payable_Due = Math.max(
+        0, 
+        currentSelectedVendorForPayment.Total_Purchase - currentSelectedVendorForPayment.Total_Paid
+      );
+
+      closePaymentModal();
+      renderVendorsDashboard();
+    }
+
+    /**
+     * SESSION & RLS SWITCHER (FOR TESTING)
+     */
+    function switchUserSession(newEmail) {
+      LoggedInUserEmail = newEmail;
+
+      const emailBadge = document.getElementById('currentEmailBadge');
+      const rlsPill = document.getElementById('rlsStatusPill');
+      const rlsText = document.getElementById('rlsExplanationText');
+      const rlsIcon = document.getElementById('rlsIconBadge');
+
+      emailBadge.textContent = newEmail;
+
+      if (newEmail.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
+        rlsPill.className = "text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-amber-500 text-slate-950";
+        rlsPill.textContent = "SUPER ADMIN (RLS Bypassed)";
+        rlsText.textContent = "👑 সুপার অ্যাডমিন মোড সক্রিয়: ডাটাবেজের সকল ইউজারের ভেন্ডর প্রদর্শিত হচ্ছে।";
+        rlsIcon.className = "w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-bold text-lg";
+        rlsIcon.textContent = "👑";
+      } else {
+        rlsPill.className = "text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-slate-800 text-amber-300 border border-amber-500/30";
+        rlsPill.textContent = "ROW OWNER (RLS Active)";
+        rlsText.textContent = `🔒 Row-Level Security সক্রিয়: শুধুমাত্র ${newEmail} এর তৈরি করা ভেন্ডর প্রদর্শিত হচ্ছে।`;
+        rlsIcon.className = "w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-lg";
+        rlsIcon.textContent = "🔒";
+      }
+
+      renderVendorsDashboard();
+    }
+
+    // Utility
+    function escapeHtml(text) {
+      if (!text) return '';
+      return text.replace(/[&<>"']/g, function(m) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+      });
+    }
+
+    // Initial render on load
+    document.addEventListener('DOMContentLoaded', () => {
+      renderVendorsDashboard();
+    });
+  </script>
+</body>
+</html>
