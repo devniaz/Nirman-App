@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="bn" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vendor Payments - Construction Site & Contractor Management</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#fffbeb',
+              100: '#fef3c7',
+              400: '#fbbf24',
+              500: '#f59e0b',
+              600: '#d97706'
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-amber-500 selection:text-slate-950">
+
+  <!-- ================= 1. APP HEADER & USER SESSION SWITCHER ================= -->
+  <header class="border-b border-slate-800 bg-slate-900/90 sticky top-0 z-30 backdrop-blur">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold text-lg shadow-sm">
+          💳
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base sm:text-lg font-bold text-slate-100 tracking-tight">ভেন্ডর পেমেন্ট খাতা</h1>
+            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono uppercase">
+              Payments Ledger
+            </span>
+          </div>
+          <p class="text-xs text-slate-400">Construction Site & Contractor Vendor Payments Module</p>
+        </div>
+      </div>
+
+      <!-- Super Admin / Contractor Session Switcher for Testing RLS -->
+      <div class="flex items-center gap-2">
+        <label for="userSessionSelect" class="text-xs text-slate-400 hidden sm:inline">লগইন সেশন:</label>
+        <select 
+          id="userSessionSelect" 
+          onchange="switchUserSession(this.value)" 
+          class="bg-slate-950 border border-slate-700 text-amber-400 text-xs rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-amber-500 font-mono cursor-pointer"
+        >
+          <option value="contractor@construction.com">👷 contractor@construction.com (RLS Active)</option>
+          <option value="engineer@site.com">📐 engineer@site.com (RLS Active)</option>
+          <option value="admin@yourdomain.com">👑 admin@yourdomain.com (Super Admin Bypass)</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= 2. MAIN CONTAINER ================= -->
+  <main class="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
+
+    <!-- Row-Level Security (RLS) & Access Control Status Banner -->
+    <div id="rlsBanner" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-sm">
+      <div class="flex items-center gap-3">
+        <div id="rlsIconBadge" class="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-lg flex-shrink-0">
+          🔒
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span id="currentEmailBadge" class="text-xs font-bold text-slate-100 font-mono">contractor@construction.com</span>
+            <span id="rlsStatusPill" class="text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-slate-800 text-amber-300 border border-amber-500/30">
+              ROW OWNER (RLS Active)
+            </span>
+          </div>
+          <p id="rlsExplanationText" class="text-[11px] text-slate-400 mt-0.5">
+            নিরাপত্তা ফিল্টারিং সক্রিয়: আপনি শুধুমাত্র আপনার এন্ট্রি করা (Created_By_Email) পেমেন্ট রেকর্ডগুলো দেখতে পাচ্ছেন।
+          </p>
+        </div>
+      </div>
+
+      <!-- Quick Action: Trigger New Payment Modal -->
+      <button 
+        type="button" 
+        onclick="openAddPaymentModal()" 
+        class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-2 self-start md:self-center"
+      >
+        <span>+ নতুন পেমেন্ট রেকর্ড করুন</span>
+      </button>
+    </div>
+
+    <!-- Financial Metrics Strip -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <span class="text-[11px] text-slate-400 font-medium block mb-1">মোট পেমেন্ট সংখ্যা</span>
+        <div id="metricPaymentCount" class="text-2xl font-bold font-mono text-slate-100">0 টি</div>
+        <span id="metricDbTotal" class="text-[10px] text-slate-500 font-mono mt-1 block">ডাটাবেজ মোট: 0</span>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <span class="text-[11px] text-slate-400 font-medium block mb-1">সর্বমোট পরিশোধিত (Paid)</span>
+        <div id="metricTotalAmount" class="text-2xl font-bold font-mono text-amber-400">৳ 0</div>
+        <span class="text-[10px] text-slate-500 mt-1 block">দৃশ্যমান ভাউচার অনুযায়ী</span>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <span class="text-[11px] text-slate-400 font-medium block mb-1">ব্যাংক ট্রান্সফার / চেক</span>
+        <div id="metricBankAmount" class="text-2xl font-bold font-mono text-slate-200">৳ 0</div>
+        <span class="text-[10px] text-slate-500 mt-1 block">অ্যাকাউন্ট মারফত পরিশোধ</span>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <span class="text-[11px] text-slate-400 font-medium block mb-1">ক্যাশ ও মোবাইল ব্যাংকিং</span>
+        <div id="metricCashAmount" class="text-2xl font-bold font-mono text-slate-200">৳ 0</div>
+        <span class="text-[10px] text-slate-500 mt-1 block">নগদ / bKash / Nagad</span>
+      </div>
+    </div>
+
+    <!-- Search, Filter & View Controls -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      <!-- Search Input -->
+      <div class="flex-1 relative">
+        <input 
+          type="text" 
+          id="paymentSearchInput" 
+          oninput="renderPaymentsDashboard()" 
+          placeholder="ভেন্ডরের নাম, মেমো আইডি বা তারিখ দিয়ে খুঁজুন..." 
+          class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500"
+        />
+        <span class="absolute left-3 top-2.5 text-slate-500 text-xs">🔍</span>
+      </div>
+
+      <!-- Filters Row -->
+      <div class="flex items-center gap-2 overflow-x-auto scrollbar-none">
+        <!-- Vendor Filter -->
+        <select 
+          id="vendorFilterSelect" 
+          onchange="renderPaymentsDashboard()" 
+          class="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-amber-500"
+        >
+          <option value="all">সকল ভেন্ডর</option>
+          <!-- Injected via JavaScript from vendors database -->
+        </select>
+
+        <!-- Method Filter -->
+        <select 
+          id="methodFilterSelect" 
+          onchange="renderPaymentsDashboard()" 
+          class="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-amber-500"
+        >
+          <option value="all">সকল মেথড</option>
+          <option value="Bank">ব্যাংক (Bank)</option>
+          <option value="Cash">ক্যাশ (Cash)</option>
+          <option value="Mobile Banking">মোবাইল ব্যাংকিং (Mobile)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 🎯 2. Payment History Cards Grid -->
+    <div id="paymentsCardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <!-- Injected via JavaScript -->
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyPaymentsState" class="hidden text-center py-12 bg-slate-900 border border-slate-800 rounded-2xl p-6">
+      <div class="text-4xl mb-3">🧾</div>
+      <h3 class="text-slate-200 font-bold mb-1 text-base">কোনো পেমেন্ট রেকর্ড পাওয়া যায়নি</h3>
+      <p id="emptyPaymentsMessage" class="text-xs text-slate-400 mb-4 max-w-md mx-auto">
+        এই ইউজারের অধীনে কোনো পেমেন্ট রেকর্ড পাওয়া যায়নি অথবা ফিল্টারে কোনো ফলাফল মিলেনি।
+      </p>
+      <button 
+        type="button" 
+        onclick="openAddPaymentModal()" 
+        class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-xl shadow transition"
+      >
+        + প্রথম পেমেন্ট রেকর্ড করুন
+      </button>
+    </div>
+
+  </main>
+
+  <!-- ================= 🎯 1. PAYMENT ENTRY FORM MODAL ================= -->
+  <div 
+    id="addPaymentModal" 
+    class="hidden fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md p-2.5 sm:p-4 md:p-6 flex justify-center items-start sm:items-center min-h-screen"
+  >
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-lg rounded-3xl shadow-2xl my-auto relative flex flex-col max-h-[92vh] sm:max-h-[90vh] overflow-hidden">
+      
+      <!-- Sticky Modal Header -->
+      <div class="flex items-center justify-between border-b border-slate-800 p-4 sm:p-5 bg-slate-900 flex-shrink-0 z-10">
+        <div class="flex items-center gap-2.5">
+          <div class="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30">
+            💳
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-100 text-base">নতুন ভেন্ডর পেমেন্ট ফর্ম</h3>
+            <p class="text-[11px] text-slate-400">সরবরাহকারীর মূল্য পরিশোধ ও মানি রসিদ ভাউচার আপলোড</p>
+          </div>
+        </div>
+        <button 
+          type="button" 
+          onclick="closeAddPaymentModal()" 
+          class="text-slate-400 hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-800 transition"
+          title="বন্ধ করুন"
+        >
+          ✕
+        </button>
+      </div>
+
+      <!-- Scrollable Form Body -->
+      <form id="paymentEntryForm" onsubmit="handlePaymentFormSubmit(event)" class="flex flex-col flex-1 min-h-0 overflow-hidden">
+        <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs overscroll-contain">
+          
+          <!-- Field 1: Vendor_ID (Dropdown / Select) -->
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">
+              ১. ভেন্ডর নির্বাচন করুন (Vendor Name) <span class="text-amber-400">*</span>
+            </label>
+            <select 
+              id="formVendorId" 
+              required 
+              onchange="onVendorSelectionChanged(this.value)"
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-slate-100 focus:outline-none focus:border-amber-500 font-medium cursor-pointer"
+            >
+              <option value="" disabled selected>তালিকা থেকে ভেন্ডর বাছাই করুন...</option>
+              <!-- Dynamically populated via JavaScript -->
+            </select>
+            <!-- Vendor Info Card (Shows live due & category upon selection) -->
+            <div id="vendorLiveInfoBadge" class="hidden mt-2 p-2.5 bg-slate-950 rounded-xl border border-slate-800 text-[11px] flex items-center justify-between">
+              <span class="text-slate-400">বর্তমান বকেয়া পাওনা:</span>
+              <span id="vendorLiveDueText" class="font-mono font-bold text-amber-400">৳ 0</span>
+            </div>
+          </div>
+
+          <!-- Field 2: Amount_Paid & Field 3: Payment_Method -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-slate-300 font-semibold mb-1">
+                ২. পরিশোধিত পরিমাণ (Amount Paid) ৳ <span class="text-amber-400">*</span>
+              </label>
+              <input 
+                type="number" 
+                id="formAmountPaid" 
+                min="1" 
+                step="any" 
+                required 
+                placeholder="যেমন: ৫০,০০০" 
+                class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-slate-100 font-mono text-sm font-bold focus:outline-none focus:border-amber-500"
+              />
+            </div>
+
+            <div>
+              <label class="block text-slate-300 font-semibold mb-1">
+                ৩. পেমেন্ট মেথড (Payment Method) <span class="text-amber-400">*</span>
+              </label>
+              <select 
+                id="formPaymentMethod" 
+                required 
+                class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-slate-100 focus:outline-none focus:border-amber-500 cursor-pointer"
+              >
+                <option value="Bank">🏦 ব্যাংক ট্রান্সফার / চেক (Bank)</option>
+                <option value="Cash">💵 নগদ ক্যাশ (Cash)</option>
+                <option value="Mobile Banking">📱 মোবাইল ব্যাংকিং (bKash/Nagad)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Field 4: Payment_Date -->
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">
+              ৪. পেমেন্টের তারিখ (Payment Date) <span class="text-amber-400">*</span>
+            </label>
+            <input 
+              type="date" 
+              id="formPaymentDate" 
+              required 
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-slate-100 font-mono focus:outline-none focus:border-amber-500"
+            />
+          </div>
+
+          <!-- Field 5: Money_Receipt_Photo (File Upload Area with Preview) -->
+          <div class="space-y-1.5">
+            <label class="block text-slate-300 font-semibold">
+              ৫. মানি রসিদ / ভাউচারের ছবি (Money Receipt Photo)
+            </label>
+            
+            <!-- Upload Drag-Drop Area -->
+            <div 
+              id="dropZoneArea" 
+              class="border-2 border-dashed border-slate-700 hover:border-amber-500/60 rounded-2xl p-4 bg-slate-950/70 text-center transition cursor-pointer relative group"
+              onclick="document.getElementById('receiptFileInput').click()"
+            >
+              <input 
+                type="file" 
+                id="receiptFileInput" 
+                accept="image/*" 
+                capture="environment" 
+                class="hidden" 
+                onchange="handleReceiptFileSelected(event)"
+              />
+              <div class="flex flex-col items-center justify-center gap-1.5 py-2">
+                <span class="text-2xl group-hover:scale-110 transition">📷</span>
+                <span class="font-bold text-xs text-slate-200">ক্যামেরা দিয়ে ছবি তুলুন অথবা গ্যালারি থেকে সিলেক্ট করুন</span>
+                <span class="text-[10px] text-slate-500">JPG, PNG বা ভাউচার রসিদ ছবি (সর্বোচ্চ ৫ MB)</span>
+              </div>
+            </div>
+
+            <!-- Receipt Photo Preview Card -->
+            <div id="receiptPreviewContainer" class="hidden mt-2 p-2.5 bg-slate-950 rounded-xl border border-amber-500/30 flex items-center justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <img 
+                  id="receiptImagePreview" 
+                  src="" 
+                  alt="মানি রসিদ প্রিভিউ" 
+                  class="w-12 h-12 object-cover rounded-lg border border-slate-700 shadow"
+                />
+                <div>
+                  <div class="text-xs font-semibold text-emerald-400 flex items-center gap-1">
+                    <span>✓</span> রসিদ ফটো সংযুক্ত হয়েছে
+                  </div>
+                  <div id="receiptFileName" class="text-[10px] text-slate-400 truncate max-w-[200px]">
+                    receipt-slip.jpg
+                  </div>
+                </div>
+              </div>
+              <button 
+                type="button" 
+                onclick="removeReceiptPhoto()" 
+                class="text-red-400 hover:text-red-300 hover:bg-red-950/40 text-xs px-2.5 py-1.5 rounded-lg border border-red-500/20 transition"
+              >
+                মুছে ফেলুন
+              </button>
+            </div>
+          </div>
+
+          <!-- Metadata Tag: Created_By_Email -->
+          <div class="p-2.5 bg-slate-950/60 rounded-xl border border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+            <span>এন্ট্রি করছেন (Created_By_Email):</span>
+            <span id="formCreatedByEmailDisplay" class="font-mono font-bold text-amber-400">contractor@construction.com</span>
+          </div>
+
+        </div>
+
+        <!-- Sticky Footer: Sleek Submit Button with Modern Hover State -->
+        <div class="p-3.5 sm:p-4 border-t border-slate-800 bg-slate-900/95 flex-shrink-0 flex gap-3 z-10 shadow-lg">
+          <button 
+            type="button" 
+            onclick="closeAddPaymentModal()" 
+            class="flex-1 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold py-3 rounded-xl transition text-xs sm:text-sm"
+          >
+            বাতিল
+          </button>
+          <button 
+            type="submit" 
+            class="flex-1 bg-amber-500 hover:bg-amber-400 hover:shadow-amber-500/30 text-slate-950 font-bold py-3 rounded-xl transition duration-150 shadow-lg shadow-amber-500/20 text-xs sm:text-sm flex items-center justify-center gap-1.5"
+          >
+            <span>✓ Submit Payment (পেমেন্ট সেভ করুন)</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= 3. MODAL: RECEIPT FULL-VIEW VIEWER ================= -->
+  <div 
+    id="viewReceiptModal" 
+    class="hidden fixed inset-0 z-50 overflow-y-auto bg-black/90 backdrop-blur-md p-3 sm:p-6 flex justify-center items-center min-h-screen"
+  >
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-md rounded-3xl shadow-2xl p-5 sm:p-6 space-y-4 text-xs relative">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div>
+          <h4 class="font-bold text-slate-100 text-sm flex items-center gap-1.5">
+            <span>🧾</span> মানি রসিদ ভাউচার
+          </h4>
+          <p id="viewerVendorTitle" class="text-[11px] text-slate-400 mt-0.5">মেসার্স শাহ সিমেন্ট এজেন্সি</p>
+        </div>
+        <button 
+          type="button" 
+          onclick="closeReceiptViewerModal()" 
+          class="text-slate-400 hover:text-slate-100 p-1.5 rounded-lg hover:bg-slate-800"
+        >
+          ✕
+        </button>
+      </div>
+
+      <!-- Image Box -->
+      <div class="w-full bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center min-h-[220px] max-h-[380px] p-2">
+        <img 
+          id="viewerReceiptImage" 
+          src="" 
+          alt="Money Receipt Full View" 
+          class="max-h-[360px] w-auto max-w-full object-contain rounded-xl"
+        />
+      </div>
+
+      <!-- Payment Details Summary -->
+      <div class="bg-slate-950/80 rounded-xl p-3 border border-slate-800 space-y-1 font-mono">
+        <div class="flex justify-between">
+          <span class="text-slate-400">পরিশোধিত টাকা:</span>
+          <span id="viewerAmount" class="font-bold text-amber-400">৳ 0</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">পেমেন্ট মেথড:</span>
+          <span id="viewerMethod" class="text-slate-200">Bank</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">তারিখ:</span>
+          <span id="viewerDate" class="text-slate-300">2026-10-08</span>
+        </div>
+        <div class="flex justify-between pt-1 border-t border-slate-800 text-[10px]">
+          <span class="text-slate-500">রেকর্ড করেছেন:</span>
+          <span id="viewerCreator" class="text-slate-400">contractor@construction.com</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex gap-2 pt-1">
+        <a 
+          id="viewerDownloadLink" 
+          href="#" 
+          download="receipt-voucher.jpg" 
+          class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-xl font-medium text-center transition flex items-center justify-center gap-1.5"
+        >
+          <span>⬇️ ডাউনলোড</span>
+        </a>
+        <button 
+          type="button" 
+          onclick="closeReceiptViewerModal()" 
+          class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2.5 rounded-xl transition"
+        >
+          বন্ধ করুন
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 4. JAVASCRIPT LOGIC ================= -->
+  <script>
+    /**
+     * CONFIGURATION & CONSTANTS
+     */
+    const SUPER_ADMIN_EMAIL = "admin@yourdomain.com";
+
+    // Active User Email session state
+    let LoggedInUserEmail = "contractor@construction.com";
+
+    // In-memory Vendors Registry
+    const vendorsList = [
+      { id: "VND-101", name: "মেসার্স শাহ সিমেন্ট এজেন্সি", category: "Cement", due: 100000 },
+      { id: "VND-102", name: "বিএসআরএম স্টিল ট্রেডার্স", category: "Rod", due: 0 },
+      { id: "VND-103", name: "যমুনা স্যান্ড অ্যান্ড স্টোন সাপ্লাই", category: "Sand", due: 60000 },
+      { id: "VND-104", name: "জনতা হার্ডওয়্যার অ্যান্ড পেইন্ট স্টোর", category: "Hardware", due: 25000 }
+    ];
+
+    // Sample default money receipt graphic
+    const DEFAULT_RECEIPT_PLACEHOLDER = "data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='400' height='260' viewBox='0 0 400 260' fill='%230f172a'%3e%3crect width='400' height='260' fill='%230f172a' stroke='%23334155' stroke-width='2' rx='16'/%3e%3ctext x='50%25' y='42%25' dominant-baseline='middle' text-anchor='middle' fill='%23fbbf24' font-family='sans-serif' font-size='22' font-weight='bold'%3eMONEY RECEIPT VOUCHER%3c/text%3e%3ctext x='50%25' y='58%25' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-family='sans-serif' font-size='14'%3eOfficial Paid Receipt Slip%3c/text%3e%3c/svg%3e";
+
+    // Database of Vendor Payments
+    let paymentsDatabase = [
+      {
+        id: "PAY-901",
+        Vendor_ID: "VND-101",
+        Vendor_Name: "মেসার্স শাহ সিমেন্ট এজেন্সি",
+        Amount_Paid: 150000,
+        Payment_Method: "Bank",
+        Money_Receipt_Photo: DEFAULT_RECEIPT_PLACEHOLDER,
+        Payment_Date: "2026-10-06",
+        Created_By_Email: "contractor@construction.com"
+      },
+      {
+        id: "PAY-902",
+        Vendor_ID: "VND-102",
+        Vendor_Name: "বিএসআরএম স্টিল ট্রেডার্স",
+        Amount_Paid: 320000,
+        Payment_Method: "Bank",
+        Money_Receipt_Photo: DEFAULT_RECEIPT_PLACEHOLDER,
+        Payment_Date: "2026-10-05",
+        Created_By_Email: "contractor@construction.com"
+      },
+      {
+        id: "PAY-903",
+        Vendor_ID: "VND-103",
+        Vendor_Name: "যমুনা স্যান্ড অ্যান্ড স্টোন সাপ্লাই",
+        Amount_Paid: 45000,
+        Payment_Method: "Cash",
+        Money_Receipt_Photo: DEFAULT_RECEIPT_PLACEHOLDER,
+        Payment_Date: "2026-10-04",
+        Created_By_Email: "engineer@site.com"
+      },
+      {
+        id: "PAY-904",
+        Vendor_ID: "VND-104",
+        Vendor_Name: "জনতা হার্ডওয়্যার অ্যান্ড পেইন্ট স্টোর",
+        Amount_Paid: 70000,
+        Payment_Method: "Mobile Banking",
+        Money_Receipt_Photo: DEFAULT_RECEIPT_PLACEHOLDER,
+        Payment_Date: "2026-10-03",
+        Created_By_Email: "admin@yourdomain.com"
+      }
+    ];
+
+    // State for temporary file upload
+    let uploadedReceiptDataUrl = "";
+
+    /**
+     * 🎯 3. VISIBILITY & SECURITY LOGIC (Row-Level Security & Super Admin Access)
+     * Filters payments based on row ownership or admin status.
+     * 
+     * @param {Array} paymentsList - Full array of payments in database
+     * @param {string} currentUserEmail - Current authenticated email
+     * @returns {Array} Filtered list of payments
+     */
+    function getVisiblePayments(paymentsList, currentUserEmail) {
+      // EXCEPTION: Super Admin Access bypasses RLS and displays ALL payments
+      if (currentUserEmail.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
+        return paymentsList;
+      }
+
+      // ROW OWNER RULE: Standard users only see records created by themselves
+      return paymentsList.filter(payment =>
+        payment.Created_By_Email.toLowerCase() === currentUserEmail.toLowerCase()
+      );
+    }
+
+    /**
+     * 🎯 2. PAYMENT HISTORY DASHBOARD RENDERING (List/Card UI)
+     */
+    function renderPaymentsDashboard() {
+      const container = document.getElementById('paymentsCardsContainer');
+      const emptyState = document.getElementById('emptyPaymentsState');
+      const searchKeyword = (document.getElementById('paymentSearchInput').value || '').toLowerCase().trim();
+      const selectedVendor = document.getElementById('vendorFilterSelect').value;
+      const selectedMethod = document.getElementById('methodFilterSelect').value;
+
+      // 1. Enforce Row-Level Security
+      const rlsFiltered = getVisiblePayments(paymentsDatabase, LoggedInUserEmail);
+
+      // 2. Apply UI Filters (Search, Vendor, Payment Method)
+      const displayedPayments = rlsFiltered.filter(payment => {
+        const matchesSearch = !searchKeyword ||
+          payment.Vendor_Name.toLowerCase().includes(searchKeyword) ||
+          payment.id.toLowerCase().includes(searchKeyword) ||
+          payment.Payment_Date.includes(searchKeyword) ||
+          payment.Amount_Paid.toString().includes(searchKeyword);
+
+        const matchesVendor = selectedVendor === 'all' || payment.Vendor_ID === selectedVendor;
+        const matchesMethod = selectedMethod === 'all' || payment.Payment_Method === selectedMethod;
+
+        return matchesSearch && matchesVendor && matchesMethod;
+      });
+
+      // 3. Update Financial Metric Counters
+      updateMetrics(rlsFiltered);
+
+      // 4. Render Cards or Empty State
+      if (displayedPayments.length === 0) {
+        container.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        document.getElementById('emptyPaymentsMessage').textContent =
+          LoggedInUserEmail === SUPER_ADMIN_EMAIL
+            ? "ডাটাবেজে কোনো পেমেন্ট রেকর্ড পাওয়া যায়নি অথবা সার্চ ফিল্টারে মেলেনি।"
+            : `"${LoggedInUserEmail}" ইউজারের নামে কোনো পেমেন্ট রেকর্ড নেই। নতুন পেমেন্ট রেকর্ড করুন অথবা সেশন সুইচ করুন।`;
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      container.innerHTML = displayedPayments.map(payment => {
+        // Method badge styling with sophisticated SaaS theme
+        let methodBadgeClasses = "bg-slate-800 text-slate-300 border-slate-700";
+        let methodIcon = "💵";
+
+        if (payment.Payment_Method === 'Bank') {
+          methodBadgeClasses = "bg-amber-500/10 text-amber-300 border-amber-500/30";
+          methodIcon = "🏦";
+        } else if (payment.Payment_Method === 'Mobile Banking') {
+          methodBadgeClasses = "bg-slate-800 text-slate-200 border-slate-700";
+          methodIcon = "📱";
+        }
+
+        return `
+          <div class="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl p-4 sm:p-5 transition shadow-sm flex flex-col justify-between gap-4">
+            
+            <!-- Card Header: Vendor Name & Payment Date -->
+            <div class="space-y-2">
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <h3 class="font-bold text-slate-100 text-base leading-snug">${escapeHtml(payment.Vendor_Name)}</h3>
+                  <div class="flex items-center gap-2 mt-1">
+                    <span class="text-[10px] text-slate-400 font-mono bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-800">
+                      ID: ${payment.Vendor_ID}
+                    </span>
+                    <span class="text-[10px] text-slate-500 font-mono">
+                      Voucher: ${payment.id}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Payment Method Badge -->
+                <span class="text-[11px] px-2.5 py-1 rounded-xl border font-medium flex items-center gap-1.5 ${methodBadgeClasses}">
+                  <span>${methodIcon}</span>
+                  <span>${escapeHtml(payment.Payment_Method)}</span>
+                </span>
+              </div>
+
+              <!-- Payment Date -->
+              <div class="text-xs text-slate-400 flex items-center gap-1.5 pt-1">
+                <span>📅</span>
+                <span class="font-mono">${payment.Payment_Date}</span>
+              </div>
+
+              <!-- Row Owner Tag -->
+              <div class="text-[10px] text-slate-500 font-mono truncate">
+                রেকর্ড করেছেন: <span class="text-slate-400">${escapeHtml(payment.Created_By_Email)}</span>
+              </div>
+            </div>
+
+            <!-- Financial Data Highlight: Large, Bold Amount -->
+            <div class="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3 flex items-center justify-between">
+              <div>
+                <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
+                  পরিশোধিত টাকা (Amount Paid)
+                </span>
+                <div class="text-2xl font-black font-mono text-slate-100 tracking-tight mt-0.5">
+                  ৳ ${payment.Amount_Paid.toLocaleString('en-IN')}
+                </div>
+              </div>
+              <span class="text-xs px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
+                পরিশোধ সম্পন্ন
+              </span>
+            </div>
+
+            <!-- Quick Action Button: View Receipt -->
+            <div class="pt-1">
+              <button 
+                type="button" 
+                onclick="openReceiptViewerModal('${payment.id}')" 
+                class="w-full bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 hover:border-slate-600 py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition"
+              >
+                <span>🧾</span>
+                <span>View Receipt (মানি রসিদ দেখুন)</span>
+              </button>
+            </div>
+
+          </div>
+        `;
+      }).join('');
+    }
+
+    /**
+     * UPDATE METRICS STRIP
+     */
+    function updateMetrics(visibleList) {
+      const totalAmount = visibleList.reduce((sum, p) => sum + (p.Amount_Paid || 0), 0);
+      const bankAmount = visibleList
+        .filter(p => p.Payment_Method === 'Bank')
+        .reduce((sum, p) => sum + (p.Amount_Paid || 0), 0);
+      const cashAmount = visibleList
+        .filter(p => p.Payment_Method !== 'Bank')
+        .reduce((sum, p) => sum + (p.Amount_Paid || 0), 0);
+
+      document.getElementById('metricPaymentCount').textContent = `${visibleList.length} টি`;
+      document.getElementById('metricDbTotal').textContent = `ডাটাবেজ মোট: ${paymentsDatabase.length} টি`;
+      document.getElementById('metricTotalAmount').textContent = `৳ ${totalAmount.toLocaleString('en-IN')}`;
+      document.getElementById('metricBankAmount').textContent = `৳ ${bankAmount.toLocaleString('en-IN')}`;
+      document.getElementById('metricCashAmount').textContent = `৳ ${cashAmount.toLocaleString('en-IN')}`;
+    }
+
+    /**
+     * POPULATE VENDOR DROPDOWNS
+     */
+    function populateVendorDropdowns() {
+      const formSelect = document.getElementById('formVendorId');
+      const filterSelect = document.getElementById('vendorFilterSelect');
+
+      // Populate Modal Form Select
+      formSelect.innerHTML = `<option value="" disabled selected>তালিকা থেকে ভেন্ডর বাছাই করুন...</option>` +
+        vendorsList.map(v => `<option value="${v.id}">[${v.id}] ${v.name} (${v.category})</option>`).join('');
+
+      // Populate Dashboard Filter Select
+      filterSelect.innerHTML = `<option value="all">সকল ভেন্ডর</option>` +
+        vendorsList.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+    }
+
+    function onVendorSelectionChanged(vendorId) {
+      const vendor = vendorsList.find(v => v.id === vendorId);
+      const badge = document.getElementById('vendorLiveInfoBadge');
+      const dueText = document.getElementById('vendorLiveDueText');
+
+      if (vendor) {
+        badge.classList.remove('hidden');
+        dueText.textContent = `৳ ${vendor.due.toLocaleString('en-IN')} টাকা`;
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    /**
+     * 🎯 1. PAYMENT ENTRY FORM SUBMISSION (Add New Payment)
+     */
+    function handlePaymentFormSubmit(event) {
+      event.preventDefault();
+
+      const vendorId = document.getElementById('formVendorId').value;
+      const vendor = vendorsList.find(v => v.id === vendorId);
+      const amount = parseFloat(document.getElementById('formAmountPaid').value) || 0;
+      const method = document.getElementById('formPaymentMethod').value;
+      const date = document.getElementById('formPaymentDate').value;
+
+      if (!vendorId || !vendor) {
+        alert("অনুগ্রহ করে একজন ভেন্ডর নির্বাচন করুন।");
+        return;
+      }
+
+      if (amount <= 0) {
+        alert("অনুগ্রহ করে সঠিক পেমেন্ট পরিমাণ লিখুন।");
+        return;
+      }
+
+      const newPayment = {
+        id: "PAY-" + Math.floor(100 + Math.random() * 900),
+        Vendor_ID: vendorId,
+        Vendor_Name: vendor.name,
+        Amount_Paid: amount,
+        Payment_Method: method,
+        Money_Receipt_Photo: uploadedReceiptDataUrl || DEFAULT_RECEIPT_PLACEHOLDER,
+        Payment_Date: date || new Date().toISOString().split('T')[0],
+        Created_By_Email: LoggedInUserEmail // Row Owner
+      };
+
+      // Deduct from vendor due in memory
+      vendor.due = Math.max(0, vendor.due - amount);
+
+      // Prepend to database
+      paymentsDatabase.unshift(newPayment);
+
+      // Reset modal form
+      closeAddPaymentModal();
+      document.getElementById('paymentEntryForm').reset();
+      removeReceiptPhoto();
+
+      // Refresh UI
+      renderPaymentsDashboard();
+    }
+
+    /**
+     * FILE UPLOAD & PREVIEW LOGIC FOR MONEY_RECEIPT_PHOTO
+     */
+    function handleReceiptFileSelected(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        uploadedReceiptDataUrl = e.target.result;
+        document.getElementById('receiptImagePreview').src = uploadedReceiptDataUrl;
+        document.getElementById('receiptFileName').textContent = file.name;
+        document.getElementById('receiptPreviewContainer').classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removeReceiptPhoto() {
+      uploadedReceiptDataUrl = "";
+      document.getElementById('receiptFileInput').value = "";
+      document.getElementById('receiptImagePreview').src = "";
+      document.getElementById('receiptPreviewContainer').classList.add('hidden');
+    }
+
+    /**
+     * MODAL TOGGLE HANDLERS
+     */
+    function openAddPaymentModal() {
+      document.getElementById('formCreatedByEmailDisplay').textContent = LoggedInUserEmail;
+      document.getElementById('formPaymentDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('addPaymentModal').classList.remove('hidden');
+    }
+
+    function closeAddPaymentModal() {
+      document.getElementById('addPaymentModal').classList.add('hidden');
+    }
+
+    function openReceiptViewerModal(paymentId) {
+      const payment = paymentsDatabase.find(p => p.id === paymentId);
+      if (!payment) return;
+
+      document.getElementById('viewerVendorTitle').textContent = `${payment.Vendor_Name} (${payment.Vendor_ID})`;
+      document.getElementById('viewerAmount').textContent = `৳ ${payment.Amount_Paid.toLocaleString('en-IN')}`;
+      document.getElementById('viewerMethod').textContent = payment.Payment_Method;
+      document.getElementById('viewerDate').textContent = payment.Payment_Date;
+      document.getElementById('viewerCreator').textContent = payment.Created_By_Email;
+
+      const imgElem = document.getElementById('viewerReceiptImage');
+      const downloadLink = document.getElementById('viewerDownloadLink');
+
+      imgElem.src = payment.Money_Receipt_Photo || DEFAULT_RECEIPT_PLACEHOLDER;
+      downloadLink.href = payment.Money_Receipt_Photo || DEFAULT_RECEIPT_PLACEHOLDER;
+      downloadLink.download = `Receipt-${payment.id}.jpg`;
+
+      document.getElementById('viewReceiptModal').classList.remove('hidden');
+    }
+
+    function closeReceiptViewerModal() {
+      document.getElementById('viewReceiptModal').classList.add('hidden');
+    }
+
+    /**
+     * SESSION & RLS SWITCHER (FOR TESTING)
+     */
+    function switchUserSession(newEmail) {
+      LoggedInUserEmail = newEmail;
+
+      const emailBadge = document.getElementById('currentEmailBadge');
+      const rlsPill = document.getElementById('rlsStatusPill');
+      const rlsText = document.getElementById('rlsExplanationText');
+      const rlsIcon = document.getElementById('rlsIconBadge');
+
+      emailBadge.textContent = newEmail;
+
+      if (newEmail.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
+        rlsPill.className = "text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-amber-500 text-slate-950";
+        rlsPill.textContent = "SUPER ADMIN (RLS Bypassed)";
+        rlsText.textContent = "👑 সুপার অ্যাডমিন মোড সক্রিয়: ডাটাবেজের সকল ইউজারের পেমেন্ট রেকর্ড প্রদর্শিত হচ্ছে।";
+        rlsIcon.className = "w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-bold text-lg";
+        rlsIcon.textContent = "👑";
+      } else {
+        rlsPill.className = "text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-slate-800 text-amber-300 border border-amber-500/30";
+        rlsPill.textContent = "ROW OWNER (RLS Active)";
+        rlsText.textContent = `🔒 Row-Level Security সক্রিয়: শুধুমাত্র ${newEmail} এর রেকর্ড করা পেমেন্ট প্রদর্শিত হচ্ছে।`;
+        rlsIcon.className = "w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 font-bold text-lg";
+        rlsIcon.textContent = "🔒";
+      }
+
+      renderPaymentsDashboard();
+    }
+
+    // Utility: XSS Escaping
+    function escapeHtml(text) {
+      if (!text) return '';
+      return String(text).replace(/[&<>"']/g, function(m) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+      });
+    }
+
+    // Initialize on load
+    document.addEventListener('DOMContentLoaded', () => {
+      populateVendorDropdowns();
+      renderPaymentsDashboard();
+    });
+  </script>
+</body>
+</html>
